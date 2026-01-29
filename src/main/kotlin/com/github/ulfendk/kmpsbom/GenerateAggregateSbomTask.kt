@@ -47,15 +47,15 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         
         // Find the module project
         val modulePath = moduleProject.orNull
-        val targetProject = if (modulePath != null) {
-            project.findProject(modulePath)
-        } else {
-            project
+        val targetProject = when {
+            modulePath == null -> project
+            modulePath == "." -> project.rootProject
+            else -> project.findProject(modulePath)
         }
         
         if (targetProject == null) {
             logger.warn("Module project not found: $modulePath, using root project")
-            generateAggregateSbom(project, targetName, extension)
+            generateAggregateSbom(project.rootProject, targetName, extension)
         } else {
             generateAggregateSbom(targetProject, targetName, extension)
         }
@@ -172,7 +172,19 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
             val configName = config.name.lowercase()
             
             // Check if this configuration matches the target
-            if (!configName.contains(target.lowercase())) {
+            val targetLower = target.lowercase()
+            val matchesTarget = when {
+                // Android target can use android* or jvm configurations
+                targetLower == "android" -> 
+                    configName.contains("android") || configName.contains("jvm")
+                // iOS target matches ios* configurations
+                targetLower == "ios" -> 
+                    configName.contains("ios")
+                // Other targets - direct match
+                else -> configName.contains(targetLower)
+            }
+            
+            if (!matchesTarget) {
                 return@forEach
             }
             

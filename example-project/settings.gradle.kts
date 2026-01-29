@@ -9,3 +9,5 @@ pluginManagement {
 }
 
 rootProject.name = "example-project"
+include("shared")
+
