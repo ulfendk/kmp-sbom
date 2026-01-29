@@ -66,31 +66,22 @@ object PomLicenseParser {
             normalized.contains("apache license") -> "Apache-2.0"  // Default to 2.0 if version not specified
             normalized.contains("mit") -> "MIT"
             normalized.contains("bsd") && normalized.contains("3-clause") -> "BSD-3-Clause"
-            normalized.contains("bsd") && normalized.contains("3") -> "BSD-3-Clause"
             normalized.contains("bsd") && normalized.contains("2-clause") -> "BSD-2-Clause"
-            normalized.contains("bsd") && normalized.contains("2") -> "BSD-2-Clause"
             normalized.contains("bsd") -> "BSD-3-Clause"  // Default to 3-clause
             normalized.contains("gpl") && normalized.contains("3.0") -> "GPL-3.0-or-later"
-            normalized.contains("gpl") && normalized.contains("3") -> "GPL-3.0-or-later"
             normalized.contains("gpl") && normalized.contains("2.0") -> "GPL-2.0-or-later"
-            normalized.contains("gpl") && normalized.contains("2") -> "GPL-2.0-or-later"
             normalized.contains("lgpl") && normalized.contains("3.0") -> "LGPL-3.0-or-later"
-            normalized.contains("lgpl") && normalized.contains("3") -> "LGPL-3.0-or-later"
             normalized.contains("lgpl") && normalized.contains("2.1") -> "LGPL-2.1-or-later"
-            normalized.contains("lgpl") && normalized.contains("2") -> "LGPL-2.1-or-later"
             normalized.contains("eclipse public license") && normalized.contains("2.0") -> "EPL-2.0"
-            normalized.contains("eclipse public license") && normalized.contains("2") -> "EPL-2.0"
             normalized.contains("eclipse public license") && normalized.contains("1.0") -> "EPL-1.0"
-            normalized.contains("eclipse public license") && normalized.contains("1") -> "EPL-1.0"
             normalized.contains("eclipse public license") -> "EPL-2.0"  // Default to 2.0
             normalized.contains("mozilla public license 2.0") -> "MPL-2.0"
-            normalized.contains("mozilla public license") && normalized.contains("2") -> "MPL-2.0"
-            normalized.contains("mpl") && normalized.contains("2") -> "MPL-2.0"
+            normalized.contains("mozilla public license") && normalized.contains("2.0") -> "MPL-2.0"
+            normalized.contains("mpl-2.0") || normalized.contains("mpl 2.0") -> "MPL-2.0"
             normalized.contains("cddl") -> "CDDL-1.0"
             normalized.contains("public domain") -> "CC0-1.0"
             normalized.contains("unlicense") -> "Unlicense"
-            normalized.contains("isc license") -> "ISC"
-            normalized.contains("isc") -> "ISC"
+            normalized.contains("isc license") || normalized.contains("isc") -> "ISC"
             else -> licenseName // Return original if no mapping found
         }
     }
