@@ -191,6 +191,7 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
             // Skip build-time only configurations (not part of runtime binary)
             if (configName.contains("compileonly") || 
                 configName.contains("kapt") || 
+                configName.contains("ksp") ||
                 configName.contains("annotationprocessor") ||
                 configName.contains("provided")) {
                 return@forEach
