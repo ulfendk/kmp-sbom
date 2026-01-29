@@ -66,36 +66,37 @@ object DependencyCollector {
                             return  // Stop recursion on circular dependency
                         }
                         
+                        // Check if already globally visited to avoid re-traversal
+                        if (globalVisited.contains(id)) {
+                            // Still record the edge but don't traverse children
+                            if (parentId != null) {
+                                dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
+                            }
+                            return
+                        }
+                        
                         // Record parent-child relationship
                         if (parentId != null) {
                             dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
                         }
                         
-                        // Add to dependencies set if not already visited globally
-                        val isNewDependency = !globalVisited.contains(id)
-                        if (isNewDependency) {
-                            globalVisited.add(id)
-                            dependencies.add(
-                                DependencyInfo(
-                                    group = componentId.group,
-                                    name = componentId.module,
-                                    version = componentId.version,
-                                    id = id,
-                                    file = fileCache[id]
-                                )
+                        // Add to dependencies set and mark as visited
+                        globalVisited.add(id)
+                        dependencies.add(
+                            DependencyInfo(
+                                group = componentId.group,
+                                name = componentId.module,
+                                version = componentId.version,
+                                id = id,
+                                file = fileCache[id]
                             )
-                        }
+                        )
                         
-                        // Only traverse children if this is a new dependency
-                        // This prevents re-traversing already processed nodes from different entry points
-                        // which could create circular references in the graph
-                        if (isNewDependency) {
-                            // Process transitive dependencies with updated path
-                            val newVisitedInPath = visitedInPath + id
-                            componentResult.dependencies.forEach { depResult ->
-                                if (depResult is ResolvedDependencyResult) {
-                                    traverseDependencies(depResult.selected, id, newVisitedInPath)
-                                }
+                        // Process transitive dependencies with updated path
+                        val newVisitedInPath = visitedInPath + id
+                        componentResult.dependencies.forEach { depResult ->
+                            if (depResult is ResolvedDependencyResult) {
+                                traverseDependencies(depResult.selected, id, newVisitedInPath)
                             }
                         }
                     } else {
