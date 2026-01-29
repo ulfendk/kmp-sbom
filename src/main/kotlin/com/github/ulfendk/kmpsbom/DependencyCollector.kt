@@ -76,16 +76,17 @@ object DependencyCollector {
                     if (componentId is ModuleComponentIdentifier) {
                         val id = "${componentId.group}:${componentId.module}:${componentId.version}"
                         
-                        // Record parent-child relationship
-                        if (parentId != null) {
-                            dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
-                        }
-                        
                         // Check if already globally visited to avoid re-traversal and prevent cycles
                         if (globalVisited.contains(id)) {
-                            // Edge recorded above, continue to avoid re-traversing already visited node
-                            // This also prevents circular dependencies since we never re-traverse visited nodes
+                            // Skip this node entirely - don't record edge or re-traverse
+                            // This prevents circular dependencies in the output graph
                             continue
+                        }
+                        
+                        // Record parent-child relationship only for unvisited nodes
+                        // This ensures the dependency graph is acyclic (DAG)
+                        if (parentId != null) {
+                            dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
                         }
                         
                         // Add to dependencies set and mark as visited
