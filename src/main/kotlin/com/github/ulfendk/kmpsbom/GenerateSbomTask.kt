@@ -254,7 +254,8 @@ abstract class GenerateSbomTask : DefaultTask() {
         }
         
         // Search for POM files in subdirectories (Gradle stores files in hash subdirectories)
-        return pomDir.walk().firstOrNull { it.isFile && it.extension == "pom" }
+        // Use maxDepth to limit recursion and avoid excessive directory traversal
+        return pomDir.walk().maxDepth(2).firstOrNull { it.isFile && it.extension == "pom" }
     }
     
     private fun calculateSha256(file: File): String {
