@@ -45,4 +45,14 @@ kmpSbom {
     organizationName = "Example Organization"
     organizationUrl = "https://example.com"
     packageResolvedPath = "Package.resolved"
+    
+    // Example aggregate SBOM configuration for a monorepo
+    // In a real monorepo, you would set these to actual module paths
+    // androidAppModule = ":androidApp"
+    // iosFrameworkModule = ":shared"
+    
+    // Configure which dependencies to include in aggregate SBOMs
+    includeDebugDependencies = false
+    includeReleaseDependencies = true
+    includeTestDependencies = false
 }

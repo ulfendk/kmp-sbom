@@ -47,6 +47,18 @@ kmpSbom {
     // Path to Swift Package Manager Package.resolved file (optional)
     // Include this for iOS projects using Swift Package Manager dependencies
     packageResolvedPath = "path/to/Package.resolved"
+    
+    // Aggregate SBOM configuration (optional)
+    // Configure Android app module for aggregate SBOM generation
+    androidAppModule = ":androidApp"
+    
+    // Configure iOS framework module for aggregate SBOM generation
+    iosFrameworkModule = ":shared"
+    
+    // Dependency scope filtering for aggregate SBOMs
+    includeDebugDependencies = false      // default: false
+    includeReleaseDependencies = true     // default: true
+    includeTestDependencies = false       // default: false
 }
 ```
 
@@ -70,6 +82,27 @@ For a specific target (e.g., Android):
 
 Available tasks are dynamically created based on your KMP configuration.
 
+### Generate Aggregate SBOM
+
+For monorepo projects with multiple modules, you can generate aggregate SBOMs that include dependencies from all modules:
+
+**For Android:**
+```bash
+./gradlew generateAndroidAggregateSbom
+```
+
+**For iOS:**
+```bash
+./gradlew generateIosAggregateSbom
+```
+
+These tasks require configuration in the `kmpSbom` extension (see Configuration section above).
+
+The aggregate SBOM will include:
+- All dependencies from the specified app/framework module
+- All dependencies from transitive project dependencies
+- Filtering based on debug/release/test scope configuration
+
 ## Output
 
 The plugin generates two SBOM files for each target:
@@ -88,9 +121,14 @@ build/
     ├── androiddebug/
     │   ├── sbom-androiddebug.json
     │   └── sbom-androiddebug.xml
-    └── iosarm64/
-        ├── sbom-iosarm64.json
-        └── sbom-iosarm64.xml
+    ├── iosarm64/
+    │   ├── sbom-iosarm64.json
+    │   └── sbom-iosarm64.xml
+    └── aggregate/
+        ├── sbom-android-aggregate.json
+        ├── sbom-android-aggregate.xml
+        ├── sbom-ios-aggregate.json
+        └── sbom-ios-aggregate.xml
 ```
 
 ## FDA Compliance
