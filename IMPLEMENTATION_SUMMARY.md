@@ -20,6 +20,7 @@ This repository now contains a fully functional Gradle plugin for generating Sof
 - Builds complete dependency graphs with hierarchical relationships
 - Includes `dependencies` section in SBOM with `dependsOn` relationships
 - Tracks both direct and transitive dependency chains
+- **Prevents circular references**: Ensures dependency graph is acyclic (DAG) even when Gradle's resolution graph contains cycles
 
 ### ✅ Multi-Platform Support
 - Automatically detects KMP targets: Android, iOS, JVM, JS

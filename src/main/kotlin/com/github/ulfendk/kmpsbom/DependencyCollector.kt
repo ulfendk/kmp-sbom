@@ -66,8 +66,14 @@ object DependencyCollector {
                             return  // Stop recursion on circular dependency
                         }
                         
+                        // Record parent-child relationship
+                        if (parentId != null) {
+                            dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
+                        }
+                        
                         // Add to dependencies set if not already visited globally
-                        if (!globalVisited.contains(id)) {
+                        val isNewDependency = !globalVisited.contains(id)
+                        if (isNewDependency) {
                             globalVisited.add(id)
                             dependencies.add(
                                 DependencyInfo(
@@ -80,16 +86,16 @@ object DependencyCollector {
                             )
                         }
                         
-                        // Record parent-child relationship
-                        if (parentId != null) {
-                            dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
-                        }
-                        
-                        // Process transitive dependencies with updated path
-                        val newVisitedInPath = visitedInPath + id
-                        componentResult.dependencies.forEach { depResult ->
-                            if (depResult is ResolvedDependencyResult) {
-                                traverseDependencies(depResult.selected, id, newVisitedInPath)
+                        // Only traverse children if this is a new dependency
+                        // This prevents re-traversing already processed nodes from different entry points
+                        // which could create circular references in the graph
+                        if (isNewDependency) {
+                            // Process transitive dependencies with updated path
+                            val newVisitedInPath = visitedInPath + id
+                            componentResult.dependencies.forEach { depResult ->
+                                if (depResult is ResolvedDependencyResult) {
+                                    traverseDependencies(depResult.selected, id, newVisitedInPath)
+                                }
                             }
                         }
                     } else {
