@@ -2,8 +2,6 @@ package com.github.ulfendk.kmpsbom
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
-import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
@@ -72,7 +70,7 @@ abstract class GenerateSbomTask : DefaultTask() {
     ) {
         logger.lifecycle("Generating SBOM for target: $targetName")
         
-        val collectionResult = collectDependencies(configurations)
+        val collectionResult = DependencyCollector.collectDependencies(configurations, logger)
         
         // Add Swift dependencies if configured and target is iOS
         val allDependencies = if (isIosTarget(targetName) && extension.packageResolvedPath != null) {
@@ -109,89 +107,6 @@ abstract class GenerateSbomTask : DefaultTask() {
         
         // Write SBOM files
         writeSbomFiles(bom, targetName)
-    }
-    
-    private fun collectDependencies(configurations: List<Configuration>): DependencyCollectionResult {
-        val dependencies = mutableSetOf<DependencyInfo>()
-        val dependencyGraph = mutableMapOf<String, MutableSet<String>>()
-        val fileCache = mutableMapOf<String, File?>()
-        val globalVisited = mutableSetOf<String>() // Track visited across all configurations
-        
-        configurations.forEach { config ->
-            try {
-                // First, collect artifacts with files using the legacy API
-                config.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
-                    val componentId = artifact.id.componentIdentifier
-                    if (componentId is ModuleComponentIdentifier) {
-                        val id = "${componentId.group}:${componentId.module}:${componentId.version}"
-                        fileCache[id] = artifact.file
-                    }
-                }
-                
-                // Then, extract dependency relationships using modern API
-                val resolutionResult = config.incoming.resolutionResult
-                
-                // Recursively traverse the dependency tree
-                fun traverseDependencies(componentResult: org.gradle.api.artifacts.result.ResolvedComponentResult, parentId: String?, visitedInPath: Set<String>) {
-                    val componentId = componentResult.id
-                    
-                    // Only process module components (not project dependencies)
-                    if (componentId is ModuleComponentIdentifier) {
-                        val id = "${componentId.group}:${componentId.module}:${componentId.version}"
-                        
-                        // Check for circular dependencies in current path
-                        if (visitedInPath.contains(id)) {
-                            return  // Stop recursion on circular dependency
-                        }
-                        
-                        // Add to dependencies set if not already visited globally
-                        if (!globalVisited.contains(id)) {
-                            globalVisited.add(id)
-                            dependencies.add(
-                                DependencyInfo(
-                                    group = componentId.group,
-                                    name = componentId.module,
-                                    version = componentId.version,
-                                    id = id,
-                                    file = fileCache[id]
-                                )
-                            )
-                        }
-                        
-                        // Record parent-child relationship
-                        if (parentId != null) {
-                            dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
-                        }
-                        
-                        // Process transitive dependencies with updated path
-                        val newVisitedInPath = visitedInPath + id
-                        componentResult.dependencies.forEach { depResult ->
-                            if (depResult is ResolvedDependencyResult) {
-                                traverseDependencies(depResult.selected, id, newVisitedInPath)
-                            }
-                        }
-                    } else {
-                        // For project components, process their dependencies without adding them to the graph
-                        componentResult.dependencies.forEach { depResult ->
-                            if (depResult is ResolvedDependencyResult) {
-                                traverseDependencies(depResult.selected, parentId, visitedInPath)
-                            }
-                        }
-                    }
-                }
-                
-                // Start traversal from root (which is typically a project component)
-                traverseDependencies(resolutionResult.root, null, emptySet())
-                
-            } catch (e: Exception) {
-                logger.debug("Could not resolve configuration ${config.name}: ${e.message}")
-            }
-        }
-        
-        // Convert mutable sets to lists for the result
-        val graphResult = dependencyGraph.mapValues { it.value.toList() }
-        
-        return DependencyCollectionResult(dependencies, graphResult)
     }
     
     private fun collectSwiftDependencies(packageResolvedPath: String): Set<DependencyInfo> {
@@ -407,9 +322,4 @@ data class DependencyInfo(
     val id: String,
     val file: File?,
     val isSwiftPackage: Boolean = false
-)
-
-data class DependencyCollectionResult(
-    val dependencies: Set<DependencyInfo>,
-    val dependencyGraph: Map<String, List<String>>
 )
