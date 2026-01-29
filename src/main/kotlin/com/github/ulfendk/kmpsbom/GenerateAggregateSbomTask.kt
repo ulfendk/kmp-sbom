@@ -188,6 +188,15 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
                 return@forEach
             }
             
+            // Skip build-time only configurations (not part of runtime binary)
+            if (configName.contains("compileonly") || 
+                configName.contains("kapt") || 
+                configName.contains("ksp") ||
+                configName.contains("annotationprocessor") ||
+                configName.contains("provided")) {
+                return@forEach
+            }
+            
             // Filter based on scope preferences
             val shouldInclude = when {
                 // Skip test configurations if not included
