@@ -15,7 +15,8 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22")
     
     // CycloneDX for SBOM generation (FDA-approved format)
-    implementation("org.cyclonedx:cyclonedx-core-java:8.0.3")
+    // Updated to 11.0.1 to fix CVE vulnerabilities (XXE injection)
+    implementation("org.cyclonedx:cyclonedx-core-java:11.0.1")
     
     // For vulnerability scanning
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

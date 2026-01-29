@@ -17,7 +17,7 @@ import org.cyclonedx.model.License
 import org.cyclonedx.model.LicenseChoice
 import org.cyclonedx.model.Metadata
 import org.cyclonedx.model.OrganizationalContact
-import org.cyclonedx.BomGeneratorFactory
+import org.cyclonedx.generators.BomGeneratorFactory
 import org.cyclonedx.CycloneDxSchema
 import java.io.File
 
@@ -253,15 +253,15 @@ abstract class GenerateSbomTask : DefaultTask() {
         val outputDirectory = outputDir.get().asFile
         outputDirectory.mkdirs()
         
-        // Write JSON format (primary FDA-approved format)
+        // Write JSON format (primary FDA-approved format)  
         val jsonFile = File(outputDirectory, "sbom-$targetName.json")
-        val jsonGenerator = BomGeneratorFactory.createJson(CycloneDxSchema.Version.VERSION_15, bom)
+        val jsonGenerator = BomGeneratorFactory.createJson(org.cyclonedx.Version.VERSION_16, bom)
         jsonFile.writeText(jsonGenerator.toJsonString())
         logger.lifecycle("Generated SBOM: ${jsonFile.absolutePath}")
         
         // Also write XML format for compatibility
         val xmlFile = File(outputDirectory, "sbom-$targetName.xml")
-        val xmlGenerator = BomGeneratorFactory.createXml(CycloneDxSchema.Version.VERSION_15, bom)
+        val xmlGenerator = BomGeneratorFactory.createXml(org.cyclonedx.Version.VERSION_16, bom)
         xmlFile.writeText(xmlGenerator.toXmlString())
         logger.lifecycle("Generated SBOM: ${xmlFile.absolutePath}")
     }
