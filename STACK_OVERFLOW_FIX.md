@@ -57,10 +57,10 @@ fun traverseDependencies(
 
 **Why it caused stack overflow:**
 - Processing 541 configurations sequentially
-- Each configuration starts a new recursive traversal from root
-- Deep dependency trees (depth 13) × large number of nodes (20,000+)
+- Within each configuration: deep dependency trees (depth 13) × large number of nodes (20,000+)
+- Wide branching at each level creates many concurrent recursive calls
 - No tail-call optimization in JVM for nested function calls
-- Stack frames accumulate across all configurations
+- Maximum stack depth within a single configuration's traversal can exceed JVM limits
 
 ## The Fix
 
@@ -131,16 +131,19 @@ Specific DependencyCollector tests verified:
 
 ### Why Recursion Failed
 
-For a typical large project:
-- 541 configurations
-- Average 1,000 nodes per configuration (some up to 20,668)
-- Average depth of 10 levels
+For a typical large project with deep dependency trees:
+- Individual configurations with 20,000+ nodes
+- Maximum depth of 13 levels
+- Wide branching at each level (hundreds of dependencies)
 - Each recursive call uses ~1KB of stack space
 
-**Worst case calculation:**
-- 541 configs × 20,000 nodes × 13 depth ≈ potential for millions of recursive calls
-- Default JVM stack size: 1MB
-- Stack overflow when depth × configurations > available stack
+**Worst case scenario:**
+Within a single configuration with a very deep and wide dependency tree:
+- At depth 13, there could still be many unprocessed siblings at shallower depths waiting on the call stack
+- If at each level there are 50+ branches, the accumulated stack frames can exceed limits
+- Example: Depth 13 with average 20 branches per level = up to 260 concurrent stack frames
+- 260 frames × 1KB ≈ 260KB per configuration
+- With wide branching and deep trees, this can exceed the default 1MB JVM stack size
 
 ### Why Iteration Works
 
@@ -168,4 +171,6 @@ The stack overflow was caused by recursive dependency tree traversal in configur
 - ✅ Scales to arbitrarily large dependency graphs
 - ✅ Passes all existing tests
 
-The diagnostic logging was valuable for investigation but is no longer needed to prevent the stack overflow. It can remain for debugging purposes or be removed if desired.
+## Clean-up
+
+The diagnostic logging that was added to investigate the issue has been removed, as it is no longer needed. The iterative approach is the permanent fix. Essential user-facing logging (progress messages, errors, warnings) has been retained.

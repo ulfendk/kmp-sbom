@@ -36,8 +36,6 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
     @get:Optional
     abstract val moduleProject: Property<String>
     
-    private val SEPARATOR: String = "=".repeat(80)
-    
     @TaskAction
     fun generate() {
         val extension = project.extensions.getByType(KmpSbomExtension::class.java)
@@ -68,64 +66,37 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
     ) {
         try {
             // Collect all project dependencies (modules)
-            logger.lifecycle(SEPARATOR)
-            logger.lifecycle("Step 1: Collecting project dependencies")
-            logger.lifecycle(SEPARATOR)
             val allProjects = collectAllProjectDependencies(targetProject)
             logger.lifecycle("Found ${allProjects.size} modules to include in aggregate SBOM")
             
             // Collect configurations from all projects
-            logger.lifecycle("")
-            logger.lifecycle(SEPARATOR)
-            logger.lifecycle("Step 2: Collecting configurations from all projects")
-            logger.lifecycle(SEPARATOR)
             val allConfigurations = mutableListOf<Configuration>()
-            allProjects.forEachIndexed { index, proj ->
-                logger.lifecycle("Finding configs for project [${index + 1}/${allProjects.size}]: ${proj.path}")
+            allProjects.forEach { proj ->
                 val configs = findConfigurationsForTarget(proj, targetName, extension)
-                logger.lifecycle("  -> Found ${configs.size} configurations")
                 allConfigurations.addAll(configs)
             }
             
-            logger.lifecycle("")
             logger.lifecycle("Collecting dependencies from ${allConfigurations.size} configurations")
             
             // Collect all dependencies
-            logger.lifecycle("")
-            logger.lifecycle(SEPARATOR)
-            logger.lifecycle("Step 3: Collecting dependencies from configurations")
-            logger.lifecycle(SEPARATOR)
             val collectionResult = DependencyCollector.collectDependencies(allConfigurations, logger)
             
             // Add Swift dependencies if configured and target is iOS
-            logger.lifecycle("")
-            logger.lifecycle(SEPARATOR)
-            logger.lifecycle("Step 4: Adding platform-specific dependencies")
-            logger.lifecycle(SEPARATOR)
             val allDependencies = if (isIosTarget(targetName) && extension.packageResolvedPath != null) {
                 val swiftDeps = collectSwiftDependencies(extension.packageResolvedPath!!)
                 logger.lifecycle("Found ${swiftDeps.size} Swift package dependencies")
                 collectionResult.dependencies + swiftDeps
             } else {
-                logger.lifecycle("No additional platform-specific dependencies")
                 collectionResult.dependencies
             }
             
-            logger.lifecycle("")
             logger.lifecycle("Total dependencies found: ${allDependencies.size}")
             
-            logger.lifecycle("")
-            logger.lifecycle(SEPARATOR)
-            logger.lifecycle("Step 5: Creating SBOM components")
-            logger.lifecycle(SEPARATOR)
             val components = mutableListOf<Component>()
             val dependencyGraph = collectionResult.dependencyGraph.toMutableMap()
             
             // Process each dependency
-            allDependencies.forEachIndexed { index, dep ->
-                if ((index + 1) % 50 == 0 || index == 0) {
-                    logger.lifecycle("Creating component [${index + 1}/${allDependencies.size}]...")
-                }
+            allDependencies.forEach { dep ->
                 val component = createComponent(dep, extension)
                 components.add(component)
                 
@@ -133,55 +104,28 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
                 val depId = dep.id
                 dependencyGraph.putIfAbsent(depId, emptyList())
             }
-            logger.lifecycle("Created ${components.size} components")
             
             // Create BOM
-            logger.lifecycle("")
-            logger.lifecycle(SEPARATOR)
-            logger.lifecycle("Step 6: Creating BOM structure")
-            logger.lifecycle(SEPARATOR)
             val bom = createBom(targetName, targetProject.name, components, extension)
             
             // Add dependency graph
-            logger.lifecycle("Adding dependency graph with ${dependencyGraph.size} entries")
             addDependencyGraph(bom, dependencyGraph, components)
             
             // Scan for vulnerabilities if enabled
             if (extension.enableVulnerabilityScanning) {
-                logger.lifecycle("")
-                logger.lifecycle(SEPARATOR)
-                logger.lifecycle("Step 7: Scanning for vulnerabilities")
-                logger.lifecycle(SEPARATOR)
                 scanVulnerabilities(components, bom)
             }
             
             // Write SBOM files
-            logger.lifecycle("")
-            logger.lifecycle(SEPARATOR)
-            logger.lifecycle("Step 8: Writing SBOM files")
-            logger.lifecycle(SEPARATOR)
             writeSbomFiles(bom, targetName)
             
-            logger.lifecycle("")
-            logger.lifecycle(SEPARATOR)
             logger.lifecycle("SBOM generation completed successfully!")
-            logger.lifecycle(SEPARATOR)
         } catch (e: StackOverflowError) {
-            logger.error(SEPARATOR)
-            logger.error("STACK OVERFLOW ERROR DETECTED!")
-            logger.error(SEPARATOR)
-            logger.error("This typically indicates a circular dependency or excessive recursion.")
-            logger.error("Please check the log above for the last processed items before failure.")
-            logger.error("Consider:")
-            logger.error("  1. Checking for circular project dependencies in your build")
-            logger.error("  2. Reducing the number of configurations being processed")
-            logger.error("  3. Breaking circular dependencies between modules")
-            logger.error(SEPARATOR)
+            logger.error("Stack overflow error during SBOM generation. This should not occur with the current implementation.")
+            logger.error("Please report this issue with details about your project structure.")
             throw e
         } catch (e: Exception) {
-            logger.error(SEPARATOR)
-            logger.error("ERROR during SBOM generation: ${e.message}")
-            logger.error(SEPARATOR)
+            logger.error("Error during SBOM generation: ${e.message}")
             logger.debug("Stack trace:", e)
             throw e
         }
@@ -191,60 +135,37 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
      * Collect all project dependencies recursively
      */
     private fun collectAllProjectDependencies(project: Project): Set<Project> {
-        logger.lifecycle("Starting to collect project dependencies from: ${project.path}")
         val projects = mutableSetOf<Project>()
         projects.add(project)
         
         val queue = mutableListOf(project)
         val visited = mutableSetOf<Project>()
-        var processedCount = 0
         
         while (queue.isNotEmpty()) {
             val current = queue.removeAt(0)
             if (current in visited) {
-                logger.debug("Skipping already visited project: ${current.path}")
                 continue
             }
             visited.add(current)
-            processedCount++
-            
-            logger.lifecycle("Processing project [${processedCount}]: ${current.path}")
             
             // Get all configurations for this project
-            var configCount = 0
             current.configurations.forEach { config ->
                 if (config.isCanBeResolved) {
-                    configCount++
                     try {
-                        var projectDepCount = 0
                         config.allDependencies.forEach { dep ->
                             if (dep is org.gradle.api.artifacts.ProjectDependency) {
-                                projectDepCount++
                                 val depProject = dep.dependencyProject
-                                logger.debug("  Found project dependency: ${depProject.path} (via config: ${config.name})")
                                 if (depProject !in visited) {
                                     projects.add(depProject)
                                     queue.add(depProject)
-                                    logger.lifecycle("  Added new project to queue: ${depProject.path}")
-                                } else {
-                                    logger.debug("  Project ${depProject.path} already visited")
                                 }
                             }
-                        }
-                        if (projectDepCount > 0) {
-                            logger.debug("  Config ${config.name} had ${projectDepCount} project dependencies")
                         }
                     } catch (e: Exception) {
                         logger.debug("Could not resolve configuration ${config.name}: ${e.message}")
                     }
                 }
             }
-            logger.debug("  Checked ${configCount} resolvable configurations in ${current.path}")
-        }
-        
-        logger.lifecycle("Finished collecting project dependencies. Total projects found: ${projects.size}")
-        projects.forEachIndexed { index, proj ->
-            logger.lifecycle("  Project [${index + 1}]: ${proj.path}")
         }
         
         return projects
@@ -255,20 +176,12 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         target: String,
         extension: KmpSbomExtension
     ): List<Configuration> {
-        logger.debug("Finding configurations for target '$target' in project ${proj.path}")
         val configs = mutableListOf<Configuration>()
-        var totalConfigs = 0
-        var resolvableConfigs = 0
-        var matchedConfigs = 0
-        var includedConfigs = 0
         
         proj.configurations.forEach { config ->
-            totalConfigs++
             if (!config.isCanBeResolved) {
-                logger.debug("  Skipping non-resolvable config: ${config.name}")
                 return@forEach
             }
-            resolvableConfigs++
             
             val configName = config.name.lowercase()
             
@@ -286,10 +199,8 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
             }
             
             if (!matchesTarget) {
-                logger.debug("  Config '${config.name}' doesn't match target '$target'")
                 return@forEach
             }
-            matchedConfigs++
             
             // Skip build-time only configurations (not part of runtime binary)
             if (configName.contains("compileonly") || 
@@ -297,45 +208,28 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
                 configName.contains("ksp") ||
                 configName.contains("annotationprocessor") ||
                 configName.contains("provided")) {
-                logger.debug("  Skipping build-time-only config: ${config.name}")
                 return@forEach
             }
             
             // Filter based on scope preferences
             val shouldInclude = when {
                 // Skip test configurations if not included
-                configName.contains("test") -> {
-                    logger.debug("  Config '${config.name}' is test - include: ${extension.includeTestDependencies}")
-                    extension.includeTestDependencies
-                }
+                configName.contains("test") -> extension.includeTestDependencies
                 
                 // Check for debug configurations
-                configName.contains("debug") -> {
-                    logger.debug("  Config '${config.name}' is debug - include: ${extension.includeDebugDependencies}")
-                    extension.includeDebugDependencies
-                }
+                configName.contains("debug") -> extension.includeDebugDependencies
                 
                 // Check for release configurations
-                configName.contains("release") -> {
-                    logger.debug("  Config '${config.name}' is release - include: ${extension.includeReleaseDependencies}")
-                    extension.includeReleaseDependencies
-                }
+                configName.contains("release") -> extension.includeReleaseDependencies
                 
                 // Include non-debug/non-release/non-test configurations by default
-                else -> {
-                    logger.debug("  Config '${config.name}' included by default")
-                    true
-                }
+                else -> true
             }
             
             if (shouldInclude) {
                 configs.add(config)
-                includedConfigs++
-                logger.lifecycle("  Including configuration: ${config.name} from ${proj.path}")
             }
         }
-        
-        logger.lifecycle("Config summary for ${proj.path}: ${totalConfigs} total, ${resolvableConfigs} resolvable, ${matchedConfigs} matched target, ${includedConfigs} included")
         
         return configs
     }
