@@ -159,7 +159,7 @@ class ViolationValidatorTest {
         
         bom.vulnerabilities = listOf(vulnerability)
         
-        // Should not throw - MEDIUM is less severe than allowed HIGH
+        // Should not throw - MEDIUM has lower severity than the HIGH threshold, so it's allowed
         ViolationValidator.validateAndFailIfNeeded(bom, extension, project.logger)
     }
     

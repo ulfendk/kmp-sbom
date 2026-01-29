@@ -94,6 +94,8 @@ object ViolationValidator {
         val allowedLicenses = extension.allowedLicenses.map { it.uppercase() }
         
         bom.components?.forEach { component ->
+            val componentStr = formatComponent(component)
+            
             @Suppress("DEPRECATION")
             val licenses = component.licenseChoice?.licenses?.map { it.id?.uppercase() ?: it.name?.uppercase() ?: "UNKNOWN" }
                 ?: emptyList()
@@ -102,7 +104,7 @@ object ViolationValidator {
                 violations.add(
                     Violation(
                         type = ViolationType.LICENSE,
-                        component = "${component.group}:${component.name}:${component.version}",
+                        component = componentStr,
                         details = "No license information available"
                     )
                 )
@@ -112,7 +114,7 @@ object ViolationValidator {
                         violations.add(
                             Violation(
                                 type = ViolationType.LICENSE,
-                                component = "${component.group}:${component.name}:${component.version}",
+                                component = componentStr,
                                 details = "License '$license' is not in allowed list: ${extension.allowedLicenses}"
                             )
                         )
@@ -151,7 +153,7 @@ object ViolationValidator {
             if (severityIndex >= 0 && severityIndex < maxAllowedIndex) {
                 val componentRef = vulnerability.affects?.firstOrNull()?.ref ?: "Unknown"
                 val component = findComponentByRef(bom, componentRef)
-                val componentStr = component?.let { "${it.group}:${it.name}:${it.version}" } ?: componentRef
+                val componentStr = component?.let { formatComponent(it) } ?: componentRef
                 
                 violations.add(
                     Violation(
@@ -189,6 +191,16 @@ object ViolationValidator {
      */
     private fun findComponentByRef(bom: Bom, ref: String): Component? {
         return bom.components?.find { it.bomRef == ref }
+    }
+    
+    /**
+     * Formats a component as a string with null-safe handling
+     */
+    private fun formatComponent(component: Component): String {
+        val group = component.group ?: "unknown"
+        val name = component.name ?: "unknown"
+        val version = component.version ?: "unknown"
+        return "$group:$name:$version"
     }
     
     /**

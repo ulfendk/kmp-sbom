@@ -281,11 +281,13 @@ When `allowedVulnerabilitySeverity` is set to a value other than `NONE`, the plu
 - Fail the build (based on `failOnViolation` setting) if violations are found
 
 Severity levels (from most to least severe):
-1. **CRITICAL**: Only critical vulnerabilities will fail the build
-2. **HIGH**: High and critical vulnerabilities will fail the build
-3. **MEDIUM**: Medium, high, and critical vulnerabilities will fail the build
-4. **LOW**: Low, medium, high, and critical vulnerabilities will fail the build
-5. **NONE**: No vulnerabilities will fail the build (default)
+1. **CRITICAL**: Allows CRITICAL vulnerabilities. Blocks none (CRITICAL is the highest level).
+2. **HIGH**: Allows HIGH and CRITICAL vulnerabilities. Blocks none above HIGH.
+3. **MEDIUM**: Allows MEDIUM, HIGH, and CRITICAL vulnerabilities. Blocks only CRITICAL and HIGH.
+4. **LOW**: Allows LOW, MEDIUM, HIGH, and CRITICAL vulnerabilities. Blocks MEDIUM and above.
+5. **NONE**: No vulnerabilities are allowed. Blocks all severity levels.
+
+**Note:** The setting represents the *maximum* allowed severity. Vulnerabilities *more severe* than this level will fail the build.
 
 **Example:**
 ```kotlin

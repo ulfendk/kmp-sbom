@@ -56,4 +56,10 @@ kmpSbom {
     includeDebugDependencies = false
     includeReleaseDependencies = true
     includeTestDependencies = false
+    
+    // Example build-breaking configuration (commented out by default)
+    // Uncomment and configure to enable build-breaking on violations
+    // allowedLicenses = listOf("Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause")
+    // allowedVulnerabilitySeverity = "MEDIUM"
+    // failOnViolation = "PULL_REQUEST"
 }
