@@ -61,4 +61,28 @@ open class KmpSbomExtension {
      * Include test dependencies in aggregate SBOM
      */
     var includeTestDependencies: Boolean = false
+    
+    /**
+     * List of allowed SPDX license identifiers.
+     * If not empty, build will fail when dependencies have licenses not in this list.
+     * Example: ["Apache-2.0", "MIT", "BSD-3-Clause"]
+     */
+    var allowedLicenses: List<String> = emptyList()
+    
+    /**
+     * Maximum allowed vulnerability severity level.
+     * Vulnerabilities above this level will cause build failure.
+     * Valid values: CRITICAL, HIGH, MEDIUM, LOW, NONE
+     * Default: NONE (no severity causes failure)
+     */
+    var allowedVulnerabilitySeverity: String = "NONE"
+    
+    /**
+     * When to fail the build on license or vulnerability violations.
+     * - ALWAYS: Always fail on violations
+     * - PULL_REQUEST: Only fail when running in a pull request (Azure Pipelines)
+     * - NEVER: Never fail, only report violations
+     * Default: NEVER
+     */
+    var failOnViolation: String = "NEVER"
 }

@@ -119,6 +119,9 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
             // Write SBOM files
             writeSbomFiles(bom, targetName)
             
+            // Validate and fail if needed
+            ViolationValidator.validateAndFailIfNeeded(bom, extension, logger)
+            
             logger.lifecycle("SBOM generation completed successfully!")
         } catch (e: StackOverflowError) {
             logger.error("Stack overflow error during SBOM generation. This should not occur with the current implementation.")
