@@ -410,5 +410,11 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         val xmlGenerator = BomGeneratorFactory.createXml(org.cyclonedx.Version.VERSION_16, bom)
         xmlFile.writeText(xmlGenerator.toXmlString())
         logger.lifecycle("Generated aggregate SBOM: ${xmlFile.absolutePath}")
+        
+        // Write Markdown format for human readability
+        val markdownFile = File(outputDirectory, "sbom-$targetName-aggregate.md")
+        val markdownContent = MarkdownBomGenerator.generate(bom)
+        markdownFile.writeText(markdownContent)
+        logger.lifecycle("Generated aggregate SBOM: ${markdownFile.absolutePath}")
     }
 }
