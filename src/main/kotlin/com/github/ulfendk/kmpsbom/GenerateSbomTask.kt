@@ -220,64 +220,27 @@ abstract class GenerateSbomTask : DefaultTask() {
     }
     
     private fun detectLicenses(dep: DependencyInfo): LicenseChoice? {
-        // Try to detect license from POM file
-        val pomFile = findPomFile(dep)
-        if (pomFile != null && pomFile.exists()) {
-            logger.debug("Found POM file for ${dep.id}: ${pomFile.absolutePath}")
-            val licenseInfo = PomLicenseParser.parse(pomFile)
-            if (licenseInfo != null) {
-                logger.debug("Detected license for ${dep.id}: ${licenseInfo.id} (${licenseInfo.name})")
-                val licenseChoice = LicenseChoice()
-                val license = License()
-                license.id = licenseInfo.id
-                license.name = licenseInfo.name
-                if (licenseInfo.url != null) {
-                    license.url = licenseInfo.url
-                }
-                licenseChoice.addLicense(license)
-                return licenseChoice
-            } else {
-                logger.info("License information not found in POM file for ${dep.id}. The POM file may not contain license metadata.")
+        // Use LicenseResolver to try multiple sources (cache, Maven Central, Google Maven, Swift packages)
+        val resolver = LicenseResolver(logger, project.gradle.gradleUserHomeDir)
+        val licenseInfo = resolver.resolve(dep)
+        
+        if (licenseInfo != null) {
+            logger.debug("Detected license for ${dep.id}: ${licenseInfo.id} (${licenseInfo.name})")
+            val licenseChoice = LicenseChoice()
+            val license = License()
+            license.id = licenseInfo.id
+            license.name = licenseInfo.name
+            if (licenseInfo.url != null) {
+                license.url = licenseInfo.url
             }
-        } else {
-            logger.info("POM file not found for ${dep.id}. Unable to detect license information.")
+            licenseChoice.addLicense(license)
+            return licenseChoice
         }
+        
+        logger.info("Unable to detect license information for ${dep.id} from any source")
         return null
     }
-    
-    private fun findPomFile(dep: DependencyInfo): File? {
-        // Look in Gradle cache for POM file
-        val gradleHome = project.gradle.gradleUserHomeDir
-        val pomDir = File(gradleHome, "caches/modules-2/files-2.1/${dep.group}/${dep.name}/${dep.version}")
-        
-        // Check if directory exists and is readable
-        if (!pomDir.exists() || !pomDir.isDirectory) {
-            logger.debug("POM directory not found for ${dep.id}: ${pomDir.absolutePath}")
-            return null
-        }
-        
-        // Search for POM files in subdirectories (Gradle stores files in hash subdirectories)
-        // First check the directory itself
-        pomDir.listFiles()?.forEach { file ->
-            if (file.isFile && file.extension == "pom") {
-                return file
-            }
-        }
-        
-        // Then check one level deeper (hash subdirectories)
-        pomDir.listFiles()?.forEach { subDir ->
-            if (subDir.isDirectory) {
-                subDir.listFiles()?.forEach { file ->
-                    if (file.isFile && file.extension == "pom") {
-                        return file
-                    }
-                }
-            }
-        }
-        
-        logger.debug("No POM file found in ${pomDir.absolutePath} or its subdirectories")
-        return null
-    }
+
     
     private fun calculateSha256(file: File): String {
         val digest = java.security.MessageDigest.getInstance("SHA-256")
