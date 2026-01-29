@@ -112,18 +112,19 @@ data class SwiftPackageInfo(
      */
     fun toDependencyInfo(): DependencyInfo {
         // Extract organization/author from GitHub URL if possible
-        val group = extractGroupFromUrl(location)
+        val namespace = extractNamespaceFromUrl(location)
         
         return DependencyInfo(
-            group = group,
+            group = namespace,
             name = identity,
             version = version,
-            id = "$group:$identity:$version",
-            file = null // Swift packages don't have local file references like Maven artifacts
+            id = "$namespace:$identity:$version",
+            file = null, // Swift packages don't have local file references like Maven artifacts
+            isSwiftPackage = true
         )
     }
     
-    private fun extractGroupFromUrl(url: String): String {
+    private fun extractNamespaceFromUrl(url: String): String {
         // Try to extract organization from GitHub/GitLab URLs
         // Examples:
         // https://github.com/google/app-check.git -> google
@@ -143,10 +144,12 @@ data class SwiftPackageInfo(
                 // Organization is the part after the host
                 parts[hostIndex + 1]
             } else {
-                "swift"
+                // Fallback to identity if we can't extract namespace
+                identity
             }
         } catch (e: Exception) {
-            "swift"
+            // Fallback to identity if extraction fails
+            identity
         }
     }
 }

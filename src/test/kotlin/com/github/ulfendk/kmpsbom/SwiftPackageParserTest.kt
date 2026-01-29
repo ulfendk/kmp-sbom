@@ -105,7 +105,7 @@ class SwiftPackageParserTest {
     }
     
     @Test
-    fun `toDependencyInfo extracts group from GitHub URL`() {
+    fun `toDependencyInfo extracts namespace from GitHub URL`() {
         val swiftPackage = SwiftPackageInfo(
             identity = "app-check",
             location = "https://github.com/google/app-check.git",
@@ -120,10 +120,11 @@ class SwiftPackageParserTest {
         assertEquals("app-check", depInfo.name)
         assertEquals("11.2.0", depInfo.version)
         assertEquals("google:app-check:11.2.0", depInfo.id)
+        assertTrue(depInfo.isSwiftPackage)
     }
     
     @Test
-    fun `toDependencyInfo uses swift as default group`() {
+    fun `toDependencyInfo uses identity as default namespace`() {
         val swiftPackage = SwiftPackageInfo(
             identity = "some-package",
             location = "https://example.com/some-package.git",
@@ -134,7 +135,8 @@ class SwiftPackageParserTest {
         
         val depInfo = swiftPackage.toDependencyInfo()
         
-        assertEquals("swift", depInfo.group)
+        assertEquals("some-package", depInfo.group)
         assertEquals("some-package", depInfo.name)
+        assertTrue(depInfo.isSwiftPackage)
     }
 }

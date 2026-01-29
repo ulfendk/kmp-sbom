@@ -166,9 +166,9 @@ abstract class GenerateSbomTask : DefaultTask() {
         component.version = dep.version
         
         // Determine PURL type based on dependency source
-        component.purl = if (dep.group == "swift" || dep.file == null) {
-            // Swift package - use swift purl type
-            "pkg:swift/${dep.name}@${dep.version}"
+        component.purl = if (dep.isSwiftPackage) {
+            // Swift package - use swift purl type with namespace
+            "pkg:swift/${dep.group}/${dep.name}@${dep.version}"
         } else {
             // Maven dependency - use maven purl type
             "pkg:maven/${dep.group}/${dep.name}@${dep.version}"
@@ -342,5 +342,6 @@ data class DependencyInfo(
     val name: String,
     val version: String,
     val id: String,
-    val file: File?
+    val file: File?,
+    val isSwiftPackage: Boolean = false
 )
