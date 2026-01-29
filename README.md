@@ -8,6 +8,7 @@ This Gradle plugin generates FDA-approved SBOM files in CycloneDX format for Kot
 
 - ✅ **FDA-Compliant SBOMs**: Generates SBOMs in CycloneDX format (JSON and XML), recognized by the FDA for medical device software submissions
 - ✅ **Multi-Platform Support**: Generates separate SBOMs for each KMP target (Android, iOS, JVM, JS, etc.)
+- ✅ **Swift Package Manager Support**: Includes iOS dependencies from Swift Package Manager (SPM) via Package.resolved files
 - ✅ **Comprehensive Dependency Analysis**: Captures both direct and transitive dependencies with full dependency graphs
 - ✅ **License Detection**: Automatically detects and includes SPDX license information from Maven POM files
 - ✅ **Vulnerability Scanning**: Framework for integrating CVE/vulnerability checking (extensible to NVD, OSS Index, Snyk, etc.)
@@ -42,6 +43,10 @@ kmpSbom {
     // Organization information for SBOM metadata
     organizationName = "Your Organization"
     organizationUrl = "https://your-organization.com"
+    
+    // Path to Swift Package Manager Package.resolved file (optional)
+    // Include this for iOS projects using Swift Package Manager dependencies
+    packageResolvedPath = "path/to/Package.resolved"
 }
 ```
 
@@ -126,6 +131,44 @@ The plugin automatically detects and generates SBOMs for:
 - JVM
 - JavaScript (JS)
 - Other KMP targets
+
+## Swift Package Manager (SPM) Support
+
+For iOS projects that use Swift Package Manager dependencies, you can include them in your SBOM by configuring the path to your `Package.resolved` file:
+
+```kotlin
+kmpSbom {
+    packageResolvedPath = "iosApp/Package.resolved"
+}
+```
+
+The plugin will automatically:
+- Parse the `Package.resolved` file
+- Extract all Swift package dependencies (identity, version, repository URL, revision)
+- Merge them with other dependencies in the SBOM
+- Generate proper Package URLs (PURL) using the `swift` type
+
+**Note**: This feature only applies to iOS targets. When generating SBOMs for other platforms, the Swift dependencies will be excluded automatically.
+
+### Example Package.resolved Format
+
+The plugin supports both version 1 and version 2 formats of `Package.resolved`:
+
+```json
+{
+  "pins": [
+    {
+      "identity": "firebase-ios-sdk",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/firebase/firebase-ios-sdk.git",
+      "state": {
+        "revision": "1cce11cf94d27e2fc194112cc7ad51e8fb279230",
+        "version": "12.3.0"
+      }
+    }
+  ]
+}
+```
 
 ## Vulnerability Scanning
 

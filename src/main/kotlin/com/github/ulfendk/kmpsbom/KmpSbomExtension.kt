@@ -28,4 +28,10 @@ open class KmpSbomExtension {
      * Organization URL for SBOM metadata
      */
     var organizationUrl: String = ""
+    
+    /**
+     * Path to Package.resolved file for Swift Package Manager dependencies
+     * (optional, only used for iOS targets)
+     */
+    var packageResolvedPath: String? = null
 }

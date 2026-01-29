@@ -44,4 +44,5 @@ kmpSbom {
     includeLicenses = true
     organizationName = "Example Organization"
     organizationUrl = "https://example.com"
+    packageResolvedPath = "Package.resolved"
 }
