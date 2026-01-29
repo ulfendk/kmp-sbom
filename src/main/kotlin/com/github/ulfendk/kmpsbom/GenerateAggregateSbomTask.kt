@@ -3,8 +3,6 @@ package com.github.ulfendk.kmpsbom
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
-import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
@@ -80,30 +78,30 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         logger.lifecycle("Collecting dependencies from ${allConfigurations.size} configurations")
         
         // Collect all dependencies
-        val dependencies = collectDependencies(allConfigurations)
+        val collectionResult = DependencyCollector.collectDependencies(allConfigurations, logger)
         
         // Add Swift dependencies if configured and target is iOS
         val allDependencies = if (isIosTarget(targetName) && extension.packageResolvedPath != null) {
             val swiftDeps = collectSwiftDependencies(extension.packageResolvedPath!!)
             logger.lifecycle("Found ${swiftDeps.size} Swift package dependencies")
-            dependencies + swiftDeps
+            collectionResult.dependencies + swiftDeps
         } else {
-            dependencies
+            collectionResult.dependencies
         }
         
         logger.lifecycle("Total dependencies found: ${allDependencies.size}")
         
         val components = mutableListOf<Component>()
-        val dependencyGraph = mutableMapOf<String, MutableList<String>>()
+        val dependencyGraph = collectionResult.dependencyGraph.toMutableMap()
         
         // Process each dependency
         allDependencies.forEach { dep ->
             val component = createComponent(dep, extension)
             components.add(component)
             
-            // Track dependency relationships
+            // Ensure all dependencies have an entry in the graph (even if empty)
             val depId = dep.id
-            dependencyGraph.putIfAbsent(depId, mutableListOf())
+            dependencyGraph.putIfAbsent(depId, emptyList())
         }
         
         // Create BOM
@@ -218,33 +216,6 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         }
         
         return configs
-    }
-    
-    private fun collectDependencies(configurations: List<Configuration>): Set<DependencyInfo> {
-        val dependencies = mutableSetOf<DependencyInfo>()
-        
-        configurations.forEach { config ->
-            try {
-                config.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
-                    val componentId = artifact.id.componentIdentifier
-                    if (componentId is ModuleComponentIdentifier) {
-                        dependencies.add(
-                            DependencyInfo(
-                                group = componentId.group,
-                                name = componentId.module,
-                                version = componentId.version,
-                                id = "${componentId.group}:${componentId.module}:${componentId.version}",
-                                file = artifact.file
-                            )
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                logger.debug("Could not resolve configuration ${config.name}: ${e.message}")
-            }
-        }
-        
-        return dependencies
     }
     
     private fun collectSwiftDependencies(packageResolvedPath: String): Set<DependencyInfo> {
