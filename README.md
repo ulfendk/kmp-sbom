@@ -8,8 +8,10 @@ This Gradle plugin generates FDA-approved SBOM files in CycloneDX format for Kot
 
 - ✅ **FDA-Compliant SBOMs**: Generates SBOMs in CycloneDX format (JSON and XML), recognized by the FDA for medical device software submissions
 - ✅ **Multi-Platform Support**: Generates separate SBOMs for each KMP target (Android, iOS, JVM, JS, etc.)
+- ✅ **Aggregate SBOMs for Monorepos**: Generates comprehensive SBOMs for Android/iOS apps including all module dependencies
 - ✅ **Swift Package Manager Support**: Includes iOS dependencies from Swift Package Manager (SPM) via Package.resolved files
 - ✅ **Comprehensive Dependency Analysis**: Captures both direct and transitive dependencies with full dependency graphs
+- ✅ **Dependency Scope Filtering**: Control which dependencies to include (debug/release/test) in aggregate SBOMs
 - ✅ **License Detection**: Automatically detects and includes SPDX license information from Maven POM files
 - ✅ **Vulnerability Scanning**: Framework for integrating CVE/vulnerability checking (extensible to NVD, OSS Index, Snyk, etc.)
 - ✅ **SHA-256 Hashes**: Includes cryptographic hashes for all dependency artifacts
@@ -218,6 +220,74 @@ The plugin includes a framework for vulnerability scanning. To integrate with ex
 4. **Snyk**: Commercial vulnerability scanning service
 
 The `VulnerabilityScanner` class can be extended to integrate with these services.
+
+## Aggregate SBOM for Monorepos
+
+For monorepo projects with multiple modules, the plugin supports generating aggregate SBOMs that include dependencies from all transitive modules. This is especially useful for:
+
+- Android apps that depend on multiple library modules
+- iOS frameworks that export functionality from multiple modules
+- Projects where you need a complete dependency bill of materials for a specific target
+
+### Configuration
+
+Configure aggregate SBOM generation in your root project's `build.gradle.kts`:
+
+```kotlin
+kmpSbom {
+    // Specify the Android app module
+    androidAppModule = ":androidApp"
+    
+    // Specify the iOS framework module
+    iosFrameworkModule = ":shared"
+    
+    // Control which dependency scopes to include
+    includeDebugDependencies = false      // Exclude debug dependencies
+    includeReleaseDependencies = true     // Include release dependencies
+    includeTestDependencies = false       // Exclude test dependencies
+}
+```
+
+### Generating Aggregate SBOMs
+
+Once configured, you can generate aggregate SBOMs using:
+
+**For Android:**
+```bash
+./gradlew generateAndroidAggregateSbom
+```
+
+**For iOS:**
+```bash
+./gradlew generateIosAggregateSbom
+```
+
+### What's Included
+
+The aggregate SBOM includes:
+- All dependencies from the specified module (e.g., `:androidApp` or `:shared`)
+- All dependencies from transitive project dependencies (modules that your module depends on)
+- Swift Package Manager dependencies (for iOS targets, if configured)
+- Filtering based on debug/release/test scope configuration
+
+### Example Monorepo Structure
+
+```
+my-kmp-project/
+├── androidApp/              # Android application module
+│   └── build.gradle.kts     # Depends on :shared
+├── iosApp/                  # iOS Xcode project
+│   └── Package.resolved     # Swift dependencies
+├── shared/                  # Shared KMP library
+│   └── build.gradle.kts     # Depends on other libraries
+├── core/                    # Core library module
+│   └── build.gradle.kts
+└── build.gradle.kts         # Root project with kmpSbom config
+```
+
+In this example:
+- Setting `androidAppModule = ":androidApp"` will include dependencies from `:androidApp`, `:shared`, and `:core`
+- Setting `iosFrameworkModule = ":shared"` will include dependencies from `:shared` and `:core`, plus Swift packages
 
 ## Development
 
