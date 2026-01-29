@@ -72,11 +72,21 @@ abstract class GenerateSbomTask : DefaultTask() {
         logger.lifecycle("Generating SBOM for target: $targetName")
         
         val dependencies = collectDependencies(configurations)
+        
+        // Add Swift dependencies if configured and target is iOS
+        val allDependencies = if (isIosTarget(targetName) && extension.packageResolvedPath != null) {
+            val swiftDeps = collectSwiftDependencies(extension.packageResolvedPath!!)
+            logger.lifecycle("Found ${swiftDeps.size} Swift package dependencies")
+            dependencies + swiftDeps
+        } else {
+            dependencies
+        }
+        
         val components = mutableListOf<Component>()
         val dependencyGraph = mutableMapOf<String, MutableList<String>>()
         
         // Process each dependency
-        dependencies.forEach { dep ->
+        allDependencies.forEach { dep ->
             val component = createComponent(dep, extension)
             components.add(component)
             
@@ -127,13 +137,43 @@ abstract class GenerateSbomTask : DefaultTask() {
         return dependencies
     }
     
+    private fun collectSwiftDependencies(packageResolvedPath: String): Set<DependencyInfo> {
+        val dependencies = mutableSetOf<DependencyInfo>()
+        
+        try {
+            val packageResolvedFile = project.file(packageResolvedPath)
+            val swiftPackages = SwiftPackageParser.parse(packageResolvedFile)
+            
+            swiftPackages.forEach { swiftPackage ->
+                dependencies.add(swiftPackage.toDependencyInfo())
+            }
+        } catch (e: Exception) {
+            logger.warn("Failed to parse Swift Package.resolved file: ${e.message}")
+        }
+        
+        return dependencies
+    }
+    
+    private fun isIosTarget(targetName: String): Boolean {
+        return targetName.contains("ios", ignoreCase = true)
+    }
+    
     private fun createComponent(dep: DependencyInfo, extension: KmpSbomExtension): Component {
         val component = Component()
         component.type = Component.Type.LIBRARY
         component.group = dep.group
         component.name = dep.name
         component.version = dep.version
-        component.purl = "pkg:maven/${dep.group}/${dep.name}@${dep.version}"
+        
+        // Determine PURL type based on dependency source
+        component.purl = if (dep.group == "swift" || dep.file == null) {
+            // Swift package - use swift purl type
+            "pkg:swift/${dep.name}@${dep.version}"
+        } else {
+            // Maven dependency - use maven purl type
+            "pkg:maven/${dep.group}/${dep.name}@${dep.version}"
+        }
+        
         component.bomRef = dep.id
         
         // Add licenses if enabled
