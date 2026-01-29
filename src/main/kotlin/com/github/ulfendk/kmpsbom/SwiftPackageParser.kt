@@ -35,9 +35,9 @@ object SwiftPackageParser {
                     val pins = jsonObject.getAsJsonArray("pins")
                     pins?.forEach { pinElement ->
                         val pin = pinElement.asJsonObject
-                        val package = parsePackageFromPin(pin)
-                        if (package != null) {
-                            packages.add(package)
+                        val swiftPackage = parsePackageFromPin(pin)
+                        if (swiftPackage != null) {
+                            packages.add(swiftPackage)
                         }
                     }
                 }
@@ -47,9 +47,9 @@ object SwiftPackageParser {
                     val pins = objectWrapper?.getAsJsonArray("pins")
                     pins?.forEach { pinElement ->
                         val pin = pinElement.asJsonObject
-                        val package = parsePackageFromPin(pin)
-                        if (package != null) {
-                            packages.add(package)
+                        val swiftPackage = parsePackageFromPin(pin)
+                        if (swiftPackage != null) {
+                            packages.add(swiftPackage)
                         }
                     }
                 }
