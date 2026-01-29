@@ -350,8 +350,10 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         // Try to detect license from POM file
         val pomFile = findPomFile(dep)
         if (pomFile != null && pomFile.exists()) {
+            logger.debug("Found POM file for ${dep.id}: ${pomFile.absolutePath}")
             val licenseInfo = PomLicenseParser.parse(pomFile)
             if (licenseInfo != null) {
+                logger.debug("Detected license for ${dep.id}: ${licenseInfo.id} (${licenseInfo.name})")
                 val licenseChoice = LicenseChoice()
                 val license = License()
                 license.id = licenseInfo.id
@@ -361,7 +363,11 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
                 }
                 licenseChoice.addLicense(license)
                 return licenseChoice
+            } else {
+                logger.debug("No license information found in POM file for ${dep.id}")
             }
+        } else {
+            logger.debug("No POM file found for ${dep.id}")
         }
         return null
     }
@@ -373,10 +379,12 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         
         // Check if directory exists and is readable
         if (!pomDir.exists() || !pomDir.isDirectory) {
+            logger.debug("POM directory not found for ${dep.id}: ${pomDir.absolutePath}")
             return null
         }
         
-        return pomDir.listFiles()?.firstOrNull { it.extension == "pom" }
+        // Search for POM files in subdirectories (Gradle stores files in hash subdirectories)
+        return pomDir.walk().firstOrNull { it.isFile && it.extension == "pom" }
     }
     
     private fun calculateSha256(file: File): String {
