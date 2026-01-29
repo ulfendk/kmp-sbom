@@ -57,16 +57,26 @@ object DependencyCollector {
                 // Then, extract dependency relationships using modern API
                 val resolutionResult = config.incoming.resolutionResult
                 
-                // Track recursion depth to detect potential issues
+                // Track traversal depth to detect potential issues
                 var maxDepth = 0
                 var nodeCount = 0
                 
-                // Recursively traverse the dependency tree
-                fun traverseDependencies(
-                    componentResult: org.gradle.api.artifacts.result.ResolvedComponentResult,
-                    parentId: String?,
-                    depth: Int = 0
-                ) {
+                // Iteratively traverse the dependency tree using a stack to avoid StackOverflowError
+                // Each stack entry contains: component, parent ID, and depth
+                data class TraversalEntry(
+                    val component: org.gradle.api.artifacts.result.ResolvedComponentResult,
+                    val parentId: String?,
+                    val depth: Int
+                )
+                
+                val traversalStack = ArrayDeque<TraversalEntry>()
+                traversalStack.addLast(TraversalEntry(resolutionResult.root, null, 0))
+                
+                logger.debug("  Starting traversal for ${config.name}")
+                
+                while (traversalStack.isNotEmpty()) {
+                    val (componentResult, parentId, depth) = traversalStack.removeLast()
+                    
                     if (depth > maxDepth) {
                         maxDepth = depth
                     }
@@ -75,7 +85,7 @@ object DependencyCollector {
                     if (depth > 1000) {
                         logger.warn("WARNING: Excessive traversal depth (${depth}) detected! Possible circular dependency. Current component: ${componentResult.id}")
                         logger.warn("  Parent: ${parentId}")
-                        return
+                        continue
                     }
                     
                     nodeCount++
@@ -100,12 +110,12 @@ object DependencyCollector {
                         
                         // Check if already globally visited to avoid re-traversal and prevent cycles
                         if (globalVisited.contains(id)) {
-                            // Edge recorded above, return early to avoid re-traversing already visited node
+                            // Edge recorded above, continue to avoid re-traversing already visited node
                             // This also prevents circular dependencies since we never re-traverse visited nodes
                             if (depth < 5) {
                                 logger.debug("    [$depth] Already visited $id - skipping re-traversal")
                             }
-                            return
+                            continue
                         }
                         
                         // Add to dependencies set and mark as visited
@@ -120,28 +130,25 @@ object DependencyCollector {
                             )
                         )
                         
-                        // Process transitive dependencies
+                        // Add transitive dependencies to stack for processing
                         componentResult.dependencies.forEach { depResult ->
                             if (depResult is ResolvedDependencyResult) {
-                                traverseDependencies(depResult.selected, id, depth + 1)
+                                traversalStack.addLast(TraversalEntry(depResult.selected, id, depth + 1))
                             }
                         }
                     } else {
-                        // For project components, process their dependencies without adding them to the graph
+                        // For project components, add their dependencies to stack without adding them to the graph
                         if (depth < 5) {
                             logger.debug("    [$depth] Project component (not included): ${componentResult.id}")
                         }
                         componentResult.dependencies.forEach { depResult ->
                             if (depResult is ResolvedDependencyResult) {
-                                traverseDependencies(depResult.selected, parentId, depth + 1)
+                                traversalStack.addLast(TraversalEntry(depResult.selected, parentId, depth + 1))
                             }
                         }
                     }
                 }
                 
-                // Start traversal from root (which is typically a project component)
-                logger.debug("  Starting traversal for ${config.name}")
-                traverseDependencies(resolutionResult.root, null)
                 logger.lifecycle("  Completed ${config.name}: ${nodeCount} nodes, max depth: ${maxDepth}")
                 
             } catch (e: Exception) {
