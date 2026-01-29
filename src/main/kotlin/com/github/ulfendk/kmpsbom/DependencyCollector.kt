@@ -73,7 +73,7 @@ object DependencyCollector {
                         
                         // Check if already globally visited to avoid re-traversal
                         if (globalVisited.contains(id)) {
-                            // Edge already recorded above, just return to avoid traversing children
+                            // Edge recorded above, return early to avoid re-traversing already visited node
                             return
                         }
                         
