@@ -71,31 +71,29 @@ object DependencyCollector {
                             dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
                         }
                         
-                        // Add to dependencies set if not already visited globally
-                        val isNewDependency = !globalVisited.contains(id)
-                        if (isNewDependency) {
-                            globalVisited.add(id)
-                            dependencies.add(
-                                DependencyInfo(
-                                    group = componentId.group,
-                                    name = componentId.module,
-                                    version = componentId.version,
-                                    id = id,
-                                    file = fileCache[id]
-                                )
-                            )
+                        // Check if already globally visited to avoid re-traversal
+                        if (globalVisited.contains(id)) {
+                            // Edge recorded above, return early to avoid re-traversing already visited node
+                            return
                         }
                         
-                        // Only traverse children if this is a new dependency
-                        // This prevents re-traversing already processed nodes from different entry points
-                        // which could create circular references in the graph
-                        if (isNewDependency) {
-                            // Process transitive dependencies with updated path
-                            val newVisitedInPath = visitedInPath + id
-                            componentResult.dependencies.forEach { depResult ->
-                                if (depResult is ResolvedDependencyResult) {
-                                    traverseDependencies(depResult.selected, id, newVisitedInPath)
-                                }
+                        // Add to dependencies set and mark as visited
+                        globalVisited.add(id)
+                        dependencies.add(
+                            DependencyInfo(
+                                group = componentId.group,
+                                name = componentId.module,
+                                version = componentId.version,
+                                id = id,
+                                file = fileCache[id]
+                            )
+                        )
+                        
+                        // Process transitive dependencies with updated path
+                        val newVisitedInPath = visitedInPath + id
+                        componentResult.dependencies.forEach { depResult ->
+                            if (depResult is ResolvedDependencyResult) {
+                                traverseDependencies(depResult.selected, id, newVisitedInPath)
                             }
                         }
                     } else {
