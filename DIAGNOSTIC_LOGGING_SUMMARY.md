@@ -1,7 +1,15 @@
 # Diagnostic Logging Summary
 
+## ⚠️ ISSUE RESOLVED - Stack Overflow Fixed
+
+**The StackOverflowError has been resolved** by converting recursive dependency traversal to an iterative approach. See [STACK_OVERFLOW_FIX.md](STACK_OVERFLOW_FIX.md) for full details.
+
+The diagnostic logging below was instrumental in identifying the root cause and remains available for debugging purposes.
+
+---
+
 ## Overview
-This document describes the comprehensive diagnostic logging added to help identify and diagnose the `StackOverflowError` that occurs during Android aggregate SBOM generation.
+This document describes the comprehensive diagnostic logging added to help identify and diagnose the `StackOverflowError` that occurred during Android aggregate SBOM generation.
 
 ## Problem Statement
 When running `:shared:generateAndroidAggregateSbom`, the task fails with:
