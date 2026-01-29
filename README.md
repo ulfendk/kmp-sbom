@@ -415,6 +415,21 @@ Apply the plugin to a test KMP project and run:
 
 ## License Information
 
+The plugin automatically detects and includes SPDX license information from multiple sources:
+
+### License Resolution Strategy
+
+The plugin uses a multi-source fallback approach to resolve license information:
+
+1. **Local Gradle Cache**: First checks for POM files in the Gradle cache (`~/.gradle/caches`)
+2. **Maven Central**: If not found locally, fetches POM from Maven Central repository
+3. **Google Maven**: Falls back to Google Maven repository for Android dependencies
+4. **Swift Package Manager**: For Swift packages, fetches license information from GitHub repository API
+
+This fallback mechanism ensures license information is available even in CI/CD environments where POMs may not be cached, or when working with dependencies from different ecosystems.
+
+### Supported License Formats
+
 The plugin uses SPDX identifiers for license detection. Common licenses are automatically mapped:
 
 - Apache-2.0, Apache-1.1
@@ -425,6 +440,15 @@ The plugin uses SPDX identifiers for license detection. Common licenses are auto
 - EPL-1.0, EPL-2.0
 - MPL-2.0
 - And more...
+
+### Network Requirements
+
+License resolution from remote repositories requires network access to:
+- `repo1.maven.org` (Maven Central)
+- `dl.google.com` (Google Maven)
+- `api.github.com` (for Swift package licenses)
+
+If network access is restricted, the plugin will gracefully fall back to available sources and log informational messages for dependencies where licenses cannot be resolved.
 
 ## Requirements
 

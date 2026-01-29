@@ -90,14 +90,25 @@ class SwiftPackageIntegrationTest {
         val task = project.tasks.getByName("generateSbom") as GenerateSbomTask
         
         // Use reflection to call the private createComponent method
+        // Create a LicenseResolver for the test
+        val licenseResolver = LicenseResolver(
+            org.gradle.api.logging.Logging.getLogger("test"),
+            project.gradle.gradleUserHomeDir
+        )
+        
         val method = GenerateSbomTask::class.java.getDeclaredMethod(
             "createComponent",
             DependencyInfo::class.java,
-            KmpSbomExtension::class.java
+            KmpSbomExtension::class.java,
+            LicenseResolver::class.java
         )
         method.isAccessible = true
         
-        val component = method.invoke(task, depInfo, extension) as org.cyclonedx.model.Component
+        val component = try {
+            method.invoke(task, depInfo, extension, licenseResolver) as org.cyclonedx.model.Component
+        } finally {
+            licenseResolver.close()
+        }
         
         // Verify PURL format includes namespace
         assertEquals("pkg:swift/firebase/firebase-ios-sdk@12.3.0", component.purl)
