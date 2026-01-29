@@ -66,18 +66,15 @@ object DependencyCollector {
                             return  // Stop recursion on circular dependency
                         }
                         
-                        // Check if already globally visited to avoid re-traversal
-                        if (globalVisited.contains(id)) {
-                            // Still record the edge but don't traverse children
-                            if (parentId != null) {
-                                dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
-                            }
-                            return
-                        }
-                        
                         // Record parent-child relationship
                         if (parentId != null) {
                             dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
+                        }
+                        
+                        // Check if already globally visited to avoid re-traversal
+                        if (globalVisited.contains(id)) {
+                            // Edge already recorded above, just return to avoid traversing children
+                            return
                         }
                         
                         // Add to dependencies set and mark as visited
