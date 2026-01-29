@@ -36,6 +36,8 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
     @get:Optional
     abstract val moduleProject: Property<String>
     
+    private val SEPARATOR: String = "=".repeat(80)
+    
     @TaskAction
     fun generate() {
         val extension = project.extensions.getByType(KmpSbomExtension::class.java)
@@ -66,17 +68,17 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
     ) {
         try {
             // Collect all project dependencies (modules)
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             logger.lifecycle("Step 1: Collecting project dependencies")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             val allProjects = collectAllProjectDependencies(targetProject)
             logger.lifecycle("Found ${allProjects.size} modules to include in aggregate SBOM")
             
             // Collect configurations from all projects
             logger.lifecycle("")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             logger.lifecycle("Step 2: Collecting configurations from all projects")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             val allConfigurations = mutableListOf<Configuration>()
             allProjects.forEachIndexed { index, proj ->
                 logger.lifecycle("Finding configs for project [${index + 1}/${allProjects.size}]: ${proj.path}")
@@ -90,16 +92,16 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
             
             // Collect all dependencies
             logger.lifecycle("")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             logger.lifecycle("Step 3: Collecting dependencies from configurations")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             val collectionResult = DependencyCollector.collectDependencies(allConfigurations, logger)
             
             // Add Swift dependencies if configured and target is iOS
             logger.lifecycle("")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             logger.lifecycle("Step 4: Adding platform-specific dependencies")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             val allDependencies = if (isIosTarget(targetName) && extension.packageResolvedPath != null) {
                 val swiftDeps = collectSwiftDependencies(extension.packageResolvedPath!!)
                 logger.lifecycle("Found ${swiftDeps.size} Swift package dependencies")
@@ -113,9 +115,9 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
             logger.lifecycle("Total dependencies found: ${allDependencies.size}")
             
             logger.lifecycle("")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             logger.lifecycle("Step 5: Creating SBOM components")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             val components = mutableListOf<Component>()
             val dependencyGraph = collectionResult.dependencyGraph.toMutableMap()
             
@@ -135,9 +137,9 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
             
             // Create BOM
             logger.lifecycle("")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             logger.lifecycle("Step 6: Creating BOM structure")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             val bom = createBom(targetName, targetProject.name, components, extension)
             
             // Add dependency graph
@@ -147,39 +149,39 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
             // Scan for vulnerabilities if enabled
             if (extension.enableVulnerabilityScanning) {
                 logger.lifecycle("")
-                logger.lifecycle("=".repeat(80))
+                logger.lifecycle(SEPARATOR)
                 logger.lifecycle("Step 7: Scanning for vulnerabilities")
-                logger.lifecycle("=".repeat(80))
+                logger.lifecycle(SEPARATOR)
                 scanVulnerabilities(components, bom)
             }
             
             // Write SBOM files
             logger.lifecycle("")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             logger.lifecycle("Step 8: Writing SBOM files")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             writeSbomFiles(bom, targetName)
             
             logger.lifecycle("")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
             logger.lifecycle("SBOM generation completed successfully!")
-            logger.lifecycle("=".repeat(80))
+            logger.lifecycle(SEPARATOR)
         } catch (e: StackOverflowError) {
-            logger.error("=".repeat(80))
+            logger.error(SEPARATOR)
             logger.error("STACK OVERFLOW ERROR DETECTED!")
-            logger.error("=".repeat(80))
+            logger.error(SEPARATOR)
             logger.error("This typically indicates a circular dependency or excessive recursion.")
             logger.error("Please check the log above for the last processed items before failure.")
             logger.error("Consider:")
             logger.error("  1. Checking for circular project dependencies in your build")
             logger.error("  2. Reducing the number of configurations being processed")
             logger.error("  3. Breaking circular dependencies between modules")
-            logger.error("=".repeat(80))
+            logger.error(SEPARATOR)
             throw e
         } catch (e: Exception) {
-            logger.error("=".repeat(80))
+            logger.error(SEPARATOR)
             logger.error("ERROR during SBOM generation: ${e.message}")
-            logger.error("=".repeat(80))
+            logger.error(SEPARATOR)
             logger.debug("Stack trace:", e)
             throw e
         }
