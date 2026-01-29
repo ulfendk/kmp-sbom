@@ -52,8 +52,7 @@ object DependencyCollector {
                 // Recursively traverse the dependency tree
                 fun traverseDependencies(
                     componentResult: org.gradle.api.artifacts.result.ResolvedComponentResult,
-                    parentId: String?,
-                    visitedInPath: Set<String>
+                    parentId: String?
                 ) {
                     val componentId = componentResult.id
                     
@@ -61,19 +60,15 @@ object DependencyCollector {
                     if (componentId is ModuleComponentIdentifier) {
                         val id = "${componentId.group}:${componentId.module}:${componentId.version}"
                         
-                        // Check for circular dependencies in current path
-                        if (visitedInPath.contains(id)) {
-                            return  // Stop recursion on circular dependency
-                        }
-                        
                         // Record parent-child relationship
                         if (parentId != null) {
                             dependencyGraph.getOrPut(parentId) { mutableSetOf() }.add(id)
                         }
                         
-                        // Check if already globally visited to avoid re-traversal
+                        // Check if already globally visited to avoid re-traversal and prevent cycles
                         if (globalVisited.contains(id)) {
                             // Edge recorded above, return early to avoid re-traversing already visited node
+                            // This also prevents circular dependencies since we never re-traverse visited nodes
                             return
                         }
                         
@@ -89,25 +84,24 @@ object DependencyCollector {
                             )
                         )
                         
-                        // Process transitive dependencies with updated path
-                        val newVisitedInPath = visitedInPath + id
+                        // Process transitive dependencies
                         componentResult.dependencies.forEach { depResult ->
                             if (depResult is ResolvedDependencyResult) {
-                                traverseDependencies(depResult.selected, id, newVisitedInPath)
+                                traverseDependencies(depResult.selected, id)
                             }
                         }
                     } else {
                         // For project components, process their dependencies without adding them to the graph
                         componentResult.dependencies.forEach { depResult ->
                             if (depResult is ResolvedDependencyResult) {
-                                traverseDependencies(depResult.selected, parentId, visitedInPath)
+                                traverseDependencies(depResult.selected, parentId)
                             }
                         }
                     }
                 }
                 
                 // Start traversal from root (which is typically a project component)
-                traverseDependencies(resolutionResult.root, null, emptySet())
+                traverseDependencies(resolutionResult.root, null)
                 
             } catch (e: Exception) {
                 logger.debug("Could not resolve configuration ${config.name}: ${e.message}")
