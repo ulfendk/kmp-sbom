@@ -54,4 +54,4 @@ class KmpSbomPlugin : Plugin<Project> {
 }
 
 private fun String.capitalize(): String = 
-    this.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+    this.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }

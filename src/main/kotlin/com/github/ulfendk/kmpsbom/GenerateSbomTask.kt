@@ -227,9 +227,14 @@ abstract class GenerateSbomTask : DefaultTask() {
     private fun findPomFile(dep: DependencyInfo): File? {
         // Look in Gradle cache for POM file
         val gradleHome = project.gradle.gradleUserHomeDir
-        val pomFile = File(gradleHome, "caches/modules-2/files-2.1/${dep.group}/${dep.name}/${dep.version}")
+        val pomDir = File(gradleHome, "caches/modules-2/files-2.1/${dep.group}/${dep.name}/${dep.version}")
         
-        return pomFile.listFiles()?.firstOrNull { it.extension == "pom" }
+        // Check if directory exists and is readable
+        if (!pomDir.exists() || !pomDir.isDirectory) {
+            return null
+        }
+        
+        return pomDir.listFiles()?.firstOrNull { it.extension == "pom" }
     }
     
     private fun calculateSha256(file: File): String {
