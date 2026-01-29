@@ -102,4 +102,55 @@ class PomLicenseParserTest {
             file.delete()
         }
     }
+    
+    @Test
+    fun `parse detects license from URL when name is missing`() {
+        val file = kotlin.io.path.createTempFile("test", ".pom").toFile()
+        try {
+            file.writeText("""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                  <licenses>
+                    <license>
+                      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+                    </license>
+                  </licenses>
+                </project>
+            """.trimIndent())
+            
+            val result = PomLicenseParser.parse(file)
+            
+            assertNotNull(result)
+            assertEquals("Apache-2.0", result.id)
+            assertEquals("Apache-2.0", result.name)
+            assertEquals("https://www.apache.org/licenses/LICENSE-2.0.txt", result.url)
+        } finally {
+            file.delete()
+        }
+    }
+    
+    @Test
+    fun `parse handles empty license name`() {
+        val file = kotlin.io.path.createTempFile("test", ".pom").toFile()
+        try {
+            file.writeText("""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                  <licenses>
+                    <license>
+                      <name></name>
+                      <url>https://opensource.org/licenses/MIT</url>
+                    </license>
+                  </licenses>
+                </project>
+            """.trimIndent())
+            
+            val result = PomLicenseParser.parse(file)
+            
+            assertNotNull(result)
+            assertEquals("MIT", result.id)
+        } finally {
+            file.delete()
+        }
+    }
 }

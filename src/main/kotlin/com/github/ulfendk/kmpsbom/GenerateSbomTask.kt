@@ -234,10 +234,10 @@ abstract class GenerateSbomTask : DefaultTask() {
                 licenseChoice.addLicense(license)
                 return licenseChoice
             } else {
-                logger.debug("No license information found in POM file for ${dep.id}")
+                logger.info("License information not found in POM file for ${dep.id}. The POM file may not contain license metadata.")
             }
         } else {
-            logger.debug("No POM file found for ${dep.id}")
+            logger.info("POM file not found for ${dep.id}. Unable to detect license information.")
         }
         return null
     }
