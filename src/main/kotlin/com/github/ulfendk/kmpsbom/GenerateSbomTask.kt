@@ -304,6 +304,12 @@ abstract class GenerateSbomTask : DefaultTask() {
         val xmlGenerator = BomGeneratorFactory.createXml(org.cyclonedx.Version.VERSION_16, bom)
         xmlFile.writeText(xmlGenerator.toXmlString())
         logger.lifecycle("Generated SBOM: ${xmlFile.absolutePath}")
+        
+        // Write Markdown format for human readability
+        val markdownFile = File(outputDirectory, "sbom-$targetName.md")
+        val markdownContent = MarkdownBomGenerator.generate(bom)
+        markdownFile.writeText(markdownContent)
+        logger.lifecycle("Generated SBOM: ${markdownFile.absolutePath}")
     }
     
     private fun findAllTargetConfigurations(): Map<String, List<Configuration>> {
