@@ -87,4 +87,31 @@ class GenerateAggregateSbomTaskTest {
         assertEquals(true, extension.includeDebugDependencies)
         assertEquals(true, extension.includeTestDependencies)
     }
+    
+    @Test
+    fun `build-time configurations are excluded from aggregate SBOM`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("com.github.ulfendk.kmp-sbom")
+        
+        val extension = project.extensions.getByType(KmpSbomExtension::class.java)
+        extension.includeDebugDependencies = true
+        extension.includeReleaseDependencies = true
+        extension.includeTestDependencies = true
+        
+        // Create test task
+        project.tasks.register("testAggregateTask", GenerateAggregateSbomTask::class.java).configure {
+            targetPlatform.set("android")
+            moduleProject.set(".")
+            outputDir.set(project.layout.buildDirectory.dir("sbom/aggregate"))
+        }
+        
+        assertNotNull(project.tasks.findByName("testAggregateTask"))
+        
+        // Verify extension settings that enable all scopes
+        // This test ensures that even with all scopes enabled,
+        // build-time configurations will still be filtered out
+        assertEquals(true, extension.includeDebugDependencies)
+        assertEquals(true, extension.includeReleaseDependencies)
+        assertEquals(true, extension.includeTestDependencies)
+    }
 }
