@@ -20,3 +20,7 @@ bin/
 # Test outputs
 test-results/
 *.log
+
+# Example project builds
+example-project/.gradle/
+example-project/build/
