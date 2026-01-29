@@ -107,6 +107,9 @@ abstract class GenerateSbomTask : DefaultTask() {
         
         // Write SBOM files
         writeSbomFiles(bom, targetName)
+        
+        // Validate and fail if needed
+        ViolationValidator.validateAndFailIfNeeded(bom, extension, logger)
     }
     
     private fun collectSwiftDependencies(packageResolvedPath: String): Set<DependencyInfo> {

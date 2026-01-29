@@ -61,6 +61,16 @@ kmpSbom {
     includeDebugDependencies = false      // default: false
     includeReleaseDependencies = true     // default: true
     includeTestDependencies = false       // default: false
+    
+    // Build breaking on violations (optional)
+    // List of allowed SPDX license identifiers
+    allowedLicenses = listOf("Apache-2.0", "MIT", "BSD-3-Clause")
+    
+    // Maximum allowed vulnerability severity (CRITICAL, HIGH, MEDIUM, LOW, NONE)
+    allowedVulnerabilitySeverity = "MEDIUM"  // default: NONE
+    
+    // When to fail the build on violations (ALWAYS, PULL_REQUEST, NEVER)
+    failOnViolation = "PULL_REQUEST"  // default: NEVER
 }
 ```
 
@@ -220,6 +230,102 @@ The plugin includes a framework for vulnerability scanning. To integrate with ex
 4. **Snyk**: Commercial vulnerability scanning service
 
 The `VulnerabilityScanner` class can be extended to integrate with these services.
+
+## Build Breaking on Violations
+
+The plugin can be configured to break the build when license requirements are violated or when vulnerabilities of a certain severity are detected. This is especially useful in CI/CD pipelines like Azure Pipelines.
+
+### Configuration
+
+Configure build-breaking behavior in your `build.gradle.kts`:
+
+```kotlin
+kmpSbom {
+    // Define allowed licenses (SPDX identifiers)
+    allowedLicenses = listOf("Apache-2.0", "MIT", "BSD-3-Clause")
+    
+    // Set maximum allowed vulnerability severity
+    // Valid values: CRITICAL, HIGH, MEDIUM, LOW, NONE (default)
+    allowedVulnerabilitySeverity = "MEDIUM"
+    
+    // Define when to fail the build
+    // ALWAYS: Always fail on violations
+    // PULL_REQUEST: Only fail when running in Azure Pipelines pull requests
+    // NEVER: Never fail, only report violations (default)
+    failOnViolation = "PULL_REQUEST"
+}
+```
+
+### License Validation
+
+When `allowedLicenses` is configured with a non-empty list, the plugin will:
+- Check every dependency's license against the allowed list
+- Report components with missing license information
+- Report components with licenses not in the allowed list
+- Fail the build (based on `failOnViolation` setting) if violations are found
+
+**Example:**
+```kotlin
+kmpSbom {
+    allowedLicenses = listOf("Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause")
+    failOnViolation = "ALWAYS"
+}
+```
+
+### Vulnerability Validation
+
+When `allowedVulnerabilitySeverity` is set to a value other than `NONE`, the plugin will:
+- Scan dependencies for known vulnerabilities (requires `enableVulnerabilityScanning = true`)
+- Check vulnerability severity against the allowed level
+- Report any vulnerabilities more severe than the allowed level
+- Fail the build (based on `failOnViolation` setting) if violations are found
+
+Severity levels (from most to least severe):
+1. **CRITICAL**: Only critical vulnerabilities will fail the build
+2. **HIGH**: High and critical vulnerabilities will fail the build
+3. **MEDIUM**: Medium, high, and critical vulnerabilities will fail the build
+4. **LOW**: Low, medium, high, and critical vulnerabilities will fail the build
+5. **NONE**: No vulnerabilities will fail the build (default)
+
+**Example:**
+```kotlin
+kmpSbom {
+    enableVulnerabilityScanning = true
+    allowedVulnerabilitySeverity = "MEDIUM"
+    failOnViolation = "ALWAYS"
+}
+```
+
+### Azure Pipelines Integration
+
+The `PULL_REQUEST` option is specifically designed for Azure Pipelines:
+- Automatically detects if running in Azure Pipelines (via `TF_BUILD` or `AGENT_ID` environment variables)
+- Checks if the build is for a pull request (via `BUILD_REASON` environment variable)
+- Only fails the build when both conditions are true
+
+This allows you to enforce strict validation on pull requests while allowing more flexibility in other build scenarios.
+
+**Example Azure Pipelines configuration:**
+```yaml
+trigger:
+  - main
+
+pr:
+  - '*'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - task: Gradle@2
+    inputs:
+      workingDirectory: ''
+      gradleWrapperFile: 'gradlew'
+      tasks: 'generateSbom'
+      options: '--info'
+```
+
+With this configuration and `failOnViolation = "PULL_REQUEST"`, the build will fail on pull requests if any license or vulnerability violations are detected.
 
 ## Aggregate SBOM for Monorepos
 
