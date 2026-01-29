@@ -95,14 +95,17 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
             val components = mutableListOf<Component>()
             val dependencyGraph = collectionResult.dependencyGraph.toMutableMap()
             
-            // Process each dependency
-            allDependencies.forEach { dep ->
-                val component = createComponent(dep, extension)
-                components.add(component)
-                
-                // Ensure all dependencies have an entry in the graph (even if empty)
-                val depId = dep.id
-                dependencyGraph.putIfAbsent(depId, emptyList())
+            // Create a single LicenseResolver instance for all dependencies
+            LicenseResolver(logger, project.gradle.gradleUserHomeDir).use { licenseResolver ->
+                // Process each dependency
+                allDependencies.forEach { dep ->
+                    val component = createComponent(dep, extension, licenseResolver)
+                    components.add(component)
+                    
+                    // Ensure all dependencies have an entry in the graph (even if empty)
+                    val depId = dep.id
+                    dependencyGraph.putIfAbsent(depId, emptyList())
+                }
             }
             
             // Create BOM
@@ -258,7 +261,7 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         return targetName.contains("ios", ignoreCase = true)
     }
     
-    private fun createComponent(dep: DependencyInfo, extension: KmpSbomExtension): Component {
+    private fun createComponent(dep: DependencyInfo, extension: KmpSbomExtension, licenseResolver: LicenseResolver): Component {
         val component = Component()
         component.type = Component.Type.LIBRARY
         component.group = dep.group
@@ -278,7 +281,7 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         
         // Add licenses if enabled
         if (extension.includeLicenses) {
-            val licenseChoice = detectLicenses(dep)
+            val licenseChoice = detectLicenses(dep, licenseResolver)
             if (licenseChoice != null) {
                 component.licenseChoice = licenseChoice
             }
@@ -349,10 +352,9 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         scanner.scan(components, bom)
     }
     
-    private fun detectLicenses(dep: DependencyInfo): LicenseChoice? {
+    private fun detectLicenses(dep: DependencyInfo, licenseResolver: LicenseResolver): LicenseChoice? {
         // Use LicenseResolver to try multiple sources (cache, Maven Central, Google Maven, Swift packages)
-        val resolver = LicenseResolver(logger, project.gradle.gradleUserHomeDir)
-        val licenseInfo = resolver.resolve(dep)
+        val licenseInfo = licenseResolver.resolve(dep)
         
         if (licenseInfo != null) {
             logger.debug("Detected license for ${dep.id}: ${licenseInfo.id} (${licenseInfo.name})")

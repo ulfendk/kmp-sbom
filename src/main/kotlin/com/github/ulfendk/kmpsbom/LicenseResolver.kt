@@ -1,5 +1,6 @@
 package com.github.ulfendk.kmpsbom
 
+import com.google.gson.JsonParser
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.gradle.api.logging.Logger
@@ -12,14 +13,20 @@ import java.util.concurrent.TimeUnit
  * 1. Local Gradle cache (POM files)
  * 2. Maven Central repository
  * 3. Google Maven repository
- * 4. Swift Package Manager (for Swift dependencies)
+ * 4. Swift Package Manager (for Swift dependencies via GitHub API)
  */
-class LicenseResolver(private val logger: Logger, private val gradleUserHomeDir: File) {
+class LicenseResolver(private val logger: Logger, private val gradleUserHomeDir: File) : AutoCloseable {
     
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
+    
+    override fun close() {
+        // Release connection pool resources and thread executors
+        httpClient.connectionPool.evictAll()
+        httpClient.dispatcher.executorService.shutdown()
+    }
     
     /**
      * Resolve license information for a dependency
@@ -71,7 +78,7 @@ class LicenseResolver(private val logger: Logger, private val gradleUserHomeDir:
      * Resolve license from Maven Central repository
      */
     private fun resolveFromMavenCentral(dep: DependencyInfo): LicenseInfo? {
-        val pomUrl = buildMavenCentralUrl(dep)
+        val pomUrl = buildMavenCentralUrl(dep) ?: return null
         logger.debug("Trying to fetch POM from Maven Central: $pomUrl")
         return fetchAndParsePom(pomUrl)
     }
@@ -80,31 +87,24 @@ class LicenseResolver(private val logger: Logger, private val gradleUserHomeDir:
      * Resolve license from Google Maven repository
      */
     private fun resolveFromGoogleMaven(dep: DependencyInfo): LicenseInfo? {
-        val pomUrl = buildGoogleMavenUrl(dep)
+        val pomUrl = buildGoogleMavenUrl(dep) ?: return null
         logger.debug("Trying to fetch POM from Google Maven: $pomUrl")
         return fetchAndParsePom(pomUrl)
     }
     
     /**
-     * Resolve license for Swift packages
+     * Resolve license for Swift packages using GitHub API
      */
     private fun resolveSwiftPackageLicense(dep: DependencyInfo): LicenseInfo? {
-        // For Swift packages, we can try to fetch LICENSE file from the repository
-        // The repository URL is stored in the group field from SwiftPackageInfo
         logger.debug("Attempting to resolve license for Swift package: ${dep.id}")
         
         // Extract the repository URL from the dependency
-        // For now, we'll return null as Swift package license resolution
-        // would require fetching from GitHub/GitLab APIs or raw repository files
-        // This can be enhanced in the future
-        
-        // Try common GitHub patterns
         val repoUrl = dep.group
         if (repoUrl.contains("github.com", ignoreCase = true)) {
             return tryFetchLicenseFromGitHub(repoUrl, dep)
         }
         
-        logger.debug("Swift package license resolution not yet implemented for non-GitHub repositories")
+        logger.debug("Swift package license resolution only supported for GitHub repositories")
         return null
     }
     
@@ -127,6 +127,12 @@ class LicenseResolver(private val logger: Logger, private val gradleUserHomeDir:
             if (parts.size >= 2) {
                 val owner = parts[0]
                 val repo = parts[1]
+                
+                // Validate owner and repo names contain only valid GitHub characters
+                if (!isValidGitHubIdentifier(owner) || !isValidGitHubIdentifier(repo)) {
+                    logger.debug("Invalid GitHub owner or repository name for ${dep.id}")
+                    return null
+                }
                 
                 val licenseApiUrl = "https://api.github.com/repos/$owner/$repo/license"
                 logger.debug("Trying to fetch license from GitHub API: $licenseApiUrl")
@@ -153,18 +159,29 @@ class LicenseResolver(private val logger: Logger, private val gradleUserHomeDir:
     }
     
     /**
-     * Parse GitHub license API response
+     * Validate that a string contains only valid GitHub username/repository characters
+     */
+    private fun isValidGitHubIdentifier(identifier: String): Boolean {
+        // GitHub usernames and repository names can contain alphanumeric characters, hyphens, and underscores
+        return identifier.matches(Regex("^[a-zA-Z0-9_-]+$"))
+    }
+    
+    /**
+     * Parse GitHub license API response using proper JSON parsing
      */
     private fun parseGitHubLicenseResponse(jsonResponse: String): LicenseInfo? {
         try {
-            // Parse JSON response to extract SPDX ID
-            // Example response: {"license": {"spdx_id": "Apache-2.0", "name": "Apache License 2.0"}}
-            val regex = """"spdx_id"\s*:\s*"([^"]+)"""".toRegex()
-            val match = regex.find(jsonResponse)
-            if (match != null) {
-                val spdxId = match.groupValues[1]
-                if (spdxId != "NOASSERTION" && spdxId.isNotBlank()) {
-                    return LicenseInfo(id = spdxId, name = spdxId, url = null)
+            val jsonElement = JsonParser.parseString(jsonResponse)
+            if (jsonElement.isJsonObject) {
+                val jsonObject = jsonElement.asJsonObject
+                if (jsonObject.has("license")) {
+                    val licenseObject = jsonObject.getAsJsonObject("license")
+                    if (licenseObject.has("spdx_id")) {
+                        val spdxId = licenseObject.get("spdx_id").asString
+                        if (spdxId != "NOASSERTION" && spdxId.isNotBlank()) {
+                            return LicenseInfo(id = spdxId, name = spdxId, url = null)
+                        }
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -208,19 +225,35 @@ class LicenseResolver(private val logger: Logger, private val gradleUserHomeDir:
     }
     
     /**
-     * Build Maven Central POM URL
+     * Build Maven Central POM URL with input validation
      */
-    private fun buildMavenCentralUrl(dep: DependencyInfo): String {
+    private fun buildMavenCentralUrl(dep: DependencyInfo): String? {
+        if (!isValidMavenCoordinate(dep.group) || !isValidMavenCoordinate(dep.name) || !isValidMavenCoordinate(dep.version)) {
+            logger.debug("Invalid Maven coordinates for ${dep.id}")
+            return null
+        }
         val groupPath = dep.group.replace('.', '/')
         return "https://repo1.maven.org/maven2/$groupPath/${dep.name}/${dep.version}/${dep.name}-${dep.version}.pom"
     }
     
     /**
-     * Build Google Maven POM URL
+     * Build Google Maven POM URL with input validation
      */
-    private fun buildGoogleMavenUrl(dep: DependencyInfo): String {
+    private fun buildGoogleMavenUrl(dep: DependencyInfo): String? {
+        if (!isValidMavenCoordinate(dep.group) || !isValidMavenCoordinate(dep.name) || !isValidMavenCoordinate(dep.version)) {
+            logger.debug("Invalid Maven coordinates for ${dep.id}")
+            return null
+        }
         val groupPath = dep.group.replace('.', '/')
         return "https://dl.google.com/dl/android/maven2/$groupPath/${dep.name}/${dep.version}/${dep.name}-${dep.version}.pom"
+    }
+    
+    /**
+     * Validate that a Maven coordinate component contains only safe characters
+     */
+    private fun isValidMavenCoordinate(coordinate: String): Boolean {
+        // Maven coordinates can contain alphanumeric characters, dots, hyphens, and underscores
+        return coordinate.matches(Regex("^[a-zA-Z0-9._-]+$"))
     }
     
     /**
@@ -242,7 +275,9 @@ class LicenseResolver(private val logger: Logger, private val gradleUserHomeDir:
                             tempFile.writeText(body)
                             return PomLicenseParser.parse(tempFile)
                         } finally {
-                            tempFile.delete()
+                            if (!tempFile.delete()) {
+                                logger.debug("Failed to delete temporary file: ${tempFile.absolutePath}")
+                            }
                         }
                     }
                 } else {
