@@ -77,10 +77,6 @@ class MarkdownBomGeneratorTest {
         
         val markdown = MarkdownBomGenerator.generate(bom)
         
-        println("=== Generated Markdown ===")
-        println(markdown)
-        println("=========================")
-        
         assertTrue(markdown.contains("com.example:library1 @ 1.0.0"))
         assertTrue(markdown.contains("pkg:maven/com.example/library1@1.0.0"))
         assertTrue(markdown.contains("Apache-2.0"))

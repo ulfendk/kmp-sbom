@@ -46,7 +46,7 @@ object MarkdownBomGenerator {
             }
             
             metadata.component?.let { component ->
-                builder.append("- **Component**: ${component.name}")
+                builder.append("- **Component**: ${component.name ?: "Unknown"}")
                 if (component.version != null) {
                     builder.append(" v${component.version}")
                 }
@@ -77,8 +77,9 @@ object MarkdownBomGenerator {
         
         builder.append("## Components (${components.size})\n\n")
         
-        // Group components by type
+        // Group components by type and sort by type name for consistent output
         val componentsByType = components.groupBy { it.type ?: Component.Type.LIBRARY }
+            .toSortedMap(compareBy { it.name })
         
         componentsByType.forEach { (type, typeComponents) ->
             builder.append("### ${type.name.lowercase().replaceFirstChar { it.uppercase() }} (${typeComponents.size})\n\n")
@@ -103,7 +104,7 @@ object MarkdownBomGenerator {
             builder.append("${component.group}:")
         }
         
-        builder.append(component.name)
+        builder.append(component.name ?: "unknown")
         
         if (component.version != null) {
             builder.append(" @ ${component.version}")
@@ -210,7 +211,10 @@ object MarkdownBomGenerator {
                     // Find the component by bomRef
                     val component = components?.find { it.bomRef == ref }
                     if (component != null) {
-                        builder.append("  - ${component.group}:${component.name}@${component.version}\n")
+                        val group = component.group ?: ""
+                        val name = component.name ?: "unknown"
+                        val version = component.version ?: "unknown"
+                        builder.append("  - $group:$name@$version\n")
                     } else {
                         builder.append("  - $ref\n")
                     }
