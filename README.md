@@ -36,6 +36,16 @@ kmpSbom {
     // Enable or disable vulnerability scanning (default: true)
     enableVulnerabilityScanning = true
     
+    // Vulnerability scanners to use: "ossindex", "github", or "all" (default: "all")
+    vulnerabilityScanners = "all"
+    
+    // OSS Index credentials (optional, falls back to env vars)
+    ossIndexUsername = "your-username"
+    ossIndexToken = "your-token"
+    
+    // GitHub token for Security Advisory API (optional, falls back to env var)
+    githubToken = "ghp_yourtoken"
+    
     // Include license information in SBOM (default: true)
     includeLicenses = true
     
@@ -222,19 +232,47 @@ The plugin supports both version 1 and version 2 formats of `Package.resolved`:
 
 ## Vulnerability Scanning
 
-The plugin includes **real-time vulnerability scanning** using Sonatype's OSS Index. When enabled, the plugin automatically queries OSS Index for known CVEs in your dependencies and includes them in the SBOM.
+The plugin includes **real-time vulnerability scanning** using multiple sources:
+
+1. **OSS Index** (Sonatype): Free vulnerability database
+2. **GitHub Security Advisory**: GitHub's security database (requires token)
+
+When enabled, the plugin automatically queries these databases for known CVEs in your dependencies and includes them in the SBOM.
+
+### Scanner Configuration
+
+Choose which scanners to use:
+
+```kotlin
+kmpSbom {
+    enableVulnerabilityScanning = true
+    
+    // Choose scanners: "ossindex", "github", or "all" (default)
+    vulnerabilityScanners = "all"
+}
+```
 
 ### How It Works
 
 1. **Automatic Scanning**: When `enableVulnerabilityScanning = true`, the plugin scans all Maven dependencies
-2. **OSS Index Integration**: Uses the free OSS Index API (https://ossindex.sonatype.org/)
-3. **Batch Processing**: Components are processed in batches of 128 for optimal performance
+2. **Multiple Sources**: Uses both OSS Index and GitHub Security Advisory (if configured)
+3. **Batch Processing**: Components are processed efficiently with batch queries where supported
 4. **CVSS Scoring**: Vulnerabilities include CVSS v3 scores and severity ratings (CRITICAL, HIGH, MEDIUM, LOW)
-5. **CycloneDX Format**: All vulnerability data is included in the SBOM in standard CycloneDX format
+5. **Deduplication**: Removes duplicate vulnerabilities found by multiple scanners
+6. **CycloneDX Format**: All vulnerability data is included in the SBOM in standard CycloneDX format
 
-### Authentication (Optional)
+### OSS Index Authentication (Optional)
 
-For higher rate limits, you can authenticate with OSS Index using environment variables:
+For higher rate limits with OSS Index, configure credentials in `build.gradle.kts`:
+
+```kotlin
+kmpSbom {
+    ossIndexUsername = "your-username"
+    ossIndexToken = "your-token"
+}
+```
+
+Or use environment variables:
 
 ```bash
 export OSSINDEX_USERNAME="your-username"
@@ -244,17 +282,30 @@ export OSSINDEX_TOKEN="your-token"
 **Anonymous requests**: 16 requests per hour  
 **Authenticated requests**: Significantly higher limits
 
-To get credentials, create a free account at https://ossindex.sonatype.org/
+Create a free account at https://ossindex.sonatype.org/
 
-### Configuration
+### GitHub Security Advisory (Optional)
 
-Enable or disable vulnerability scanning in your `build.gradle.kts`:
+To use GitHub's Security Advisory database, configure a GitHub token:
 
 ```kotlin
 kmpSbom {
-    enableVulnerabilityScanning = true  // default: true
+    githubToken = "ghp_yourtoken"
 }
 ```
+
+Or use environment variable:
+
+```bash
+export GITHUB_TOKEN="ghp_yourtoken"
+```
+
+GitHub tokens provide access to:
+- Higher rate limits
+- More comprehensive vulnerability data
+- Private repository scanning (if needed)
+
+Create a personal access token at https://github.com/settings/tokens
 
 ### Example Output
 
@@ -283,6 +334,26 @@ When vulnerabilities are found, they are included in the SBOM:
           "ref": "pkg:maven/org.apache.commons/commons-text@1.9"
         }
       ]
+    },
+    {
+      "id": "GHSA-599f-7c49-w659",
+      "source": {
+        "name": "GitHub Security Advisory",
+        "url": "https://github.com/advisories/GHSA-599f-7c49-w659"
+      },
+      "description": "Apache Commons Text vulnerable to variable interpolation RCE",
+      "ratings": [
+        {
+          "score": 9.8,
+          "severity": "critical",
+          "method": "CVSSv31"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:maven/org.apache.commons/commons-text@1.9"
+        }
+      ]
     }
   ]
 }
@@ -290,16 +361,24 @@ When vulnerabilities are found, they are included in the SBOM:
 
 ### Supported Ecosystems
 
-Currently, OSS Index scanning supports:
+Currently, vulnerability scanning supports:
 - **Maven/Gradle** dependencies (pkg:maven/...)
 - Swift Package Manager dependencies are excluded from scanning
 
-### Future Extensions
+### Scanner-Specific Features
 
-The `VulnerabilityScanner` class can be extended to integrate with additional services:
-- **NVD API**: NIST National Vulnerability Database
-- **GitHub Security Advisory**: GitHub's security database
-- **Snyk**: Commercial vulnerability scanning service
+**OSS Index:**
+- Batch queries (up to 128 components per request)
+- Fast response times
+- Community-maintained database
+- No authentication required (but recommended for rate limits)
+
+**GitHub Security Advisory:**
+- Comprehensive vulnerability data
+- CVE and GHSA identifiers
+- Direct integration with GitHub's security team
+- Requires GitHub token for access
+- Individual component queries (no batch support)
 
 ## Build Breaking on Violations
 
