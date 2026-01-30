@@ -34,6 +34,8 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 // Add a known vulnerable library for testing OSS Index scanning
+                // WARNING: This is intentionally vulnerable for demonstration only
+                // Do NOT use in production code
                 implementation("org.apache.commons:commons-text:1.9")
             }
         }
