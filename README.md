@@ -13,7 +13,7 @@ This Gradle plugin generates FDA-approved SBOM files in CycloneDX format for Kot
 - ✅ **Comprehensive Dependency Analysis**: Captures both direct and transitive dependencies with full dependency graphs
 - ✅ **Dependency Scope Filtering**: Control which dependencies to include (debug/release/test) in aggregate SBOMs
 - ✅ **License Detection**: Automatically detects and includes SPDX license information from Maven POM files
-- ✅ **Vulnerability Scanning**: Framework for integrating CVE/vulnerability checking (extensible to NVD, OSS Index, Snyk, etc.)
+- ✅ **Vulnerability Scanning**: Real-time CVE scanning using OSS Index with CVSS scoring and severity ratings
 - ✅ **SHA-256 Hashes**: Includes cryptographic hashes for all dependency artifacts
 - ✅ **Package URLs (PURL)**: Generates standard package URLs for component identification
 
@@ -35,6 +35,16 @@ Configure the plugin using the `kmpSbom` extension:
 kmpSbom {
     // Enable or disable vulnerability scanning (default: true)
     enableVulnerabilityScanning = true
+    
+    // Vulnerability scanners to use: "ossindex", "github", or "all" (default: "all")
+    vulnerabilityScanners = "all"
+    
+    // OSS Index credentials (optional, falls back to env vars)
+    ossIndexUsername = "your-username"
+    ossIndexToken = "your-token"
+    
+    // GitHub token for Security Advisory API (optional, falls back to env var)
+    githubToken = "ghp_yourtoken"
     
     // Include license information in SBOM (default: true)
     includeLicenses = true
@@ -222,14 +232,153 @@ The plugin supports both version 1 and version 2 formats of `Package.resolved`:
 
 ## Vulnerability Scanning
 
-The plugin includes a framework for vulnerability scanning. To integrate with external services:
+The plugin includes **real-time vulnerability scanning** using multiple sources:
 
-1. **OSS Index**: Free vulnerability database by Sonatype
-2. **NVD API**: NIST National Vulnerability Database
-3. **GitHub Security Advisory**: GitHub's security database
-4. **Snyk**: Commercial vulnerability scanning service
+1. **OSS Index** (Sonatype): Free vulnerability database
+2. **GitHub Security Advisory**: GitHub's security database (requires token)
 
-The `VulnerabilityScanner` class can be extended to integrate with these services.
+When enabled, the plugin automatically queries these databases for known CVEs in your dependencies and includes them in the SBOM.
+
+### Scanner Configuration
+
+Choose which scanners to use:
+
+```kotlin
+kmpSbom {
+    enableVulnerabilityScanning = true
+    
+    // Choose scanners: "ossindex", "github", or "all" (default)
+    vulnerabilityScanners = "all"
+}
+```
+
+### How It Works
+
+1. **Automatic Scanning**: When `enableVulnerabilityScanning = true`, the plugin scans all Maven dependencies
+2. **Multiple Sources**: Uses both OSS Index and GitHub Security Advisory (if configured)
+3. **Batch Processing**: Components are processed efficiently with batch queries where supported
+4. **CVSS Scoring**: Vulnerabilities include CVSS v3 scores and severity ratings (CRITICAL, HIGH, MEDIUM, LOW)
+5. **Deduplication**: Removes duplicate vulnerabilities found by multiple scanners
+6. **CycloneDX Format**: All vulnerability data is included in the SBOM in standard CycloneDX format
+
+### OSS Index Authentication (Optional)
+
+For higher rate limits with OSS Index, configure credentials in `build.gradle.kts`:
+
+```kotlin
+kmpSbom {
+    ossIndexUsername = "your-username"
+    ossIndexToken = "your-token"
+}
+```
+
+Or use environment variables:
+
+```bash
+export OSSINDEX_USERNAME="your-username"
+export OSSINDEX_TOKEN="your-token"
+```
+
+**Anonymous requests**: 16 requests per hour  
+**Authenticated requests**: Significantly higher limits
+
+Create a free account at https://ossindex.sonatype.org/
+
+### GitHub Security Advisory (Optional)
+
+To use GitHub's Security Advisory database, configure a GitHub token:
+
+```kotlin
+kmpSbom {
+    githubToken = "ghp_yourtoken"
+}
+```
+
+Or use environment variable:
+
+```bash
+export GITHUB_TOKEN="ghp_yourtoken"
+```
+
+GitHub tokens provide access to:
+- Higher rate limits
+- More comprehensive vulnerability data
+- Private repository scanning (if needed)
+
+Create a personal access token at https://github.com/settings/tokens
+
+### Example Output
+
+When vulnerabilities are found, they are included in the SBOM:
+
+```json
+{
+  "vulnerabilities": [
+    {
+      "id": "CVE-2022-42889",
+      "source": {
+        "name": "OSS Index",
+        "url": "https://ossindex.sonatype.org/vulnerability/CVE-2022-42889"
+      },
+      "description": "Apache Commons Text performs variable interpolation, allowing properties...",
+      "ratings": [
+        {
+          "score": 9.8,
+          "severity": "critical",
+          "method": "CVSSv3",
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:maven/org.apache.commons/commons-text@1.9"
+        }
+      ]
+    },
+    {
+      "id": "GHSA-599f-7c49-w659",
+      "source": {
+        "name": "GitHub Security Advisory",
+        "url": "https://github.com/advisories/GHSA-599f-7c49-w659"
+      },
+      "description": "Apache Commons Text vulnerable to variable interpolation RCE",
+      "ratings": [
+        {
+          "score": 9.8,
+          "severity": "critical",
+          "method": "CVSSv31"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:maven/org.apache.commons/commons-text@1.9"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Supported Ecosystems
+
+Currently, vulnerability scanning supports:
+- **Maven/Gradle** dependencies (pkg:maven/...)
+- Swift Package Manager dependencies are excluded from scanning
+
+### Scanner-Specific Features
+
+**OSS Index:**
+- Batch queries (up to 128 components per request)
+- Fast response times
+- Community-maintained database
+- No authentication required (but recommended for rate limits)
+
+**GitHub Security Advisory:**
+- Comprehensive vulnerability data
+- CVE and GHSA identifiers
+- Direct integration with GitHub's security team
+- Requires GitHub token for access
+- Individual component queries (no batch support)
 
 ## Build Breaking on Violations
 

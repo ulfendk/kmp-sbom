@@ -47,6 +47,14 @@ kmpSbom {
     organizationUrl = "https://example.com"
     packageResolvedPath = "Package.resolved"
     
+    // Vulnerability scanner configuration
+    vulnerabilityScanners = "all"  // Options: "ossindex", "github", "all"
+    
+    // Optional: Configure scanner credentials (can also use environment variables)
+    // ossIndexUsername = "your-username"
+    // ossIndexToken = "your-token"
+    // githubToken = "ghp_yourtoken"
+    
     // Example aggregate SBOM configuration for a monorepo
     // This demonstrates aggregate SBOM for the main module which depends on :shared
     androidAppModule = "."  // Using root project for Android (normally would be ":androidApp")

@@ -5,9 +5,35 @@ package com.github.ulfendk.kmpsbom
  */
 open class KmpSbomExtension {
     /**
-     * Enable vulnerability scanning using OSS Index
+     * Enable vulnerability scanning
      */
     var enableVulnerabilityScanning: Boolean = true
+    
+    /**
+     * Vulnerability scanners to use.
+     * Valid values: "ossindex", "github", "all"
+     * Default: "all" (uses all available scanners)
+     */
+    var vulnerabilityScanners: String = "all"
+    
+    /**
+     * OSS Index username for authenticated requests (optional)
+     * Falls back to OSSINDEX_USERNAME environment variable
+     */
+    var ossIndexUsername: String? = null
+    
+    /**
+     * OSS Index token for authenticated requests (optional)
+     * Falls back to OSSINDEX_TOKEN environment variable
+     */
+    var ossIndexToken: String? = null
+    
+    /**
+     * GitHub token for GitHub Security Advisory API (optional)
+     * Falls back to GITHUB_TOKEN environment variable
+     * Required for higher rate limits and private repositories
+     */
+    var githubToken: String? = null
     
     /**
      * Include license information in SBOM

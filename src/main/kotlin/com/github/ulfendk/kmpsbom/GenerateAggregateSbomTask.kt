@@ -348,7 +348,8 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
     
     private fun scanVulnerabilities(components: List<Component>, bom: Bom) {
         logger.lifecycle("Scanning for vulnerabilities...")
-        val scanner = VulnerabilityScanner(project.logger)
+        val extension = project.extensions.getByType(KmpSbomExtension::class.java)
+        val scanner = VulnerabilityScanner(project.logger, extension)
         scanner.scan(components, bom)
     }
     
