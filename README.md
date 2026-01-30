@@ -13,7 +13,7 @@ This Gradle plugin generates FDA-approved SBOM files in CycloneDX format for Kot
 - ✅ **Comprehensive Dependency Analysis**: Captures both direct and transitive dependencies with full dependency graphs
 - ✅ **Dependency Scope Filtering**: Control which dependencies to include (debug/release/test) in aggregate SBOMs
 - ✅ **License Detection**: Automatically detects and includes SPDX license information from Maven POM files
-- ✅ **Vulnerability Scanning**: Framework for integrating CVE/vulnerability checking (extensible to NVD, OSS Index, Snyk, etc.)
+- ✅ **Vulnerability Scanning**: Real-time CVE scanning using OSS Index with CVSS scoring and severity ratings
 - ✅ **SHA-256 Hashes**: Includes cryptographic hashes for all dependency artifacts
 - ✅ **Package URLs (PURL)**: Generates standard package URLs for component identification
 
@@ -222,14 +222,84 @@ The plugin supports both version 1 and version 2 formats of `Package.resolved`:
 
 ## Vulnerability Scanning
 
-The plugin includes a framework for vulnerability scanning. To integrate with external services:
+The plugin includes **real-time vulnerability scanning** using Sonatype's OSS Index. When enabled, the plugin automatically queries OSS Index for known CVEs in your dependencies and includes them in the SBOM.
 
-1. **OSS Index**: Free vulnerability database by Sonatype
-2. **NVD API**: NIST National Vulnerability Database
-3. **GitHub Security Advisory**: GitHub's security database
-4. **Snyk**: Commercial vulnerability scanning service
+### How It Works
 
-The `VulnerabilityScanner` class can be extended to integrate with these services.
+1. **Automatic Scanning**: When `enableVulnerabilityScanning = true`, the plugin scans all Maven dependencies
+2. **OSS Index Integration**: Uses the free OSS Index API (https://ossindex.sonatype.org/)
+3. **Batch Processing**: Components are processed in batches of 128 for optimal performance
+4. **CVSS Scoring**: Vulnerabilities include CVSS v3 scores and severity ratings (CRITICAL, HIGH, MEDIUM, LOW)
+5. **CycloneDX Format**: All vulnerability data is included in the SBOM in standard CycloneDX format
+
+### Authentication (Optional)
+
+For higher rate limits, you can authenticate with OSS Index using environment variables:
+
+```bash
+export OSSINDEX_USERNAME="your-username"
+export OSSINDEX_TOKEN="your-token"
+```
+
+**Anonymous requests**: 16 requests per hour  
+**Authenticated requests**: Significantly higher limits
+
+To get credentials, create a free account at https://ossindex.sonatype.org/
+
+### Configuration
+
+Enable or disable vulnerability scanning in your `build.gradle.kts`:
+
+```kotlin
+kmpSbom {
+    enableVulnerabilityScanning = true  // default: true
+}
+```
+
+### Example Output
+
+When vulnerabilities are found, they are included in the SBOM:
+
+```json
+{
+  "vulnerabilities": [
+    {
+      "id": "CVE-2022-42889",
+      "source": {
+        "name": "OSS Index",
+        "url": "https://ossindex.sonatype.org/vulnerability/CVE-2022-42889"
+      },
+      "description": "Apache Commons Text performs variable interpolation, allowing properties...",
+      "ratings": [
+        {
+          "score": 9.8,
+          "severity": "critical",
+          "method": "CVSSv3",
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:maven/org.apache.commons/commons-text@1.9"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Supported Ecosystems
+
+Currently, OSS Index scanning supports:
+- **Maven/Gradle** dependencies (pkg:maven/...)
+- Swift Package Manager dependencies are excluded from scanning
+
+### Future Extensions
+
+The `VulnerabilityScanner` class can be extended to integrate with additional services:
+- **NVD API**: NIST National Vulnerability Database
+- **GitHub Security Advisory**: GitHub's security database
+- **Snyk**: Commercial vulnerability scanning service
 
 ## Build Breaking on Violations
 
