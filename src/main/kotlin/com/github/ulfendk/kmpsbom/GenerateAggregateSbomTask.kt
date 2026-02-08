@@ -408,5 +408,10 @@ abstract class GenerateAggregateSbomTask : DefaultTask() {
         val markdownContent = MarkdownBomGenerator.generate(bom)
         markdownFile.writeText(markdownContent)
         logger.lifecycle("Generated aggregate SBOM: ${markdownFile.absolutePath}")
+        
+        // Write PDF format generated from markdown
+        val pdfFile = File(outputDirectory, "sbom-$targetName-aggregate.pdf")
+        PdfBomGenerator.generateFromMarkdown(markdownContent, pdfFile)
+        logger.lifecycle("Generated aggregate SBOM: ${pdfFile.absolutePath}")
     }
 }

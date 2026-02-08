@@ -278,6 +278,11 @@ abstract class GenerateSbomTask : DefaultTask() {
         val markdownContent = MarkdownBomGenerator.generate(bom)
         markdownFile.writeText(markdownContent)
         logger.lifecycle("Generated SBOM: ${markdownFile.absolutePath}")
+        
+        // Write PDF format generated from markdown
+        val pdfFile = File(outputDirectory, "sbom-$targetName.pdf")
+        PdfBomGenerator.generateFromMarkdown(markdownContent, pdfFile)
+        logger.lifecycle("Generated SBOM: ${pdfFile.absolutePath}")
     }
     
     private fun findAllTargetConfigurations(): Map<String, List<Configuration>> {
