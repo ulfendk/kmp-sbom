@@ -279,6 +279,11 @@ abstract class GenerateSbomTask : DefaultTask() {
         markdownFile.writeText(markdownContent)
         logger.lifecycle("Generated SBOM: ${markdownFile.absolutePath}")
         
+        // Write HTML format generated from markdown
+        val htmlFile = File(outputDirectory, "sbom-$targetName.html")
+        PdfBomGenerator.generateHtmlFromMarkdown(markdownContent, htmlFile)
+        logger.lifecycle("Generated SBOM: ${htmlFile.absolutePath}")
+        
         // Write PDF format generated from markdown
         val pdfFile = File(outputDirectory, "sbom-$targetName.pdf")
         PdfBomGenerator.generateFromMarkdown(markdownContent, pdfFile)

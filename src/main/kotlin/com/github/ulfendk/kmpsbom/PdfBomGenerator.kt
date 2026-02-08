@@ -7,9 +7,20 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Generates a PDF representation of a CycloneDX BOM from markdown content
+ * Generates PDF and HTML representations of a CycloneDX BOM from markdown content
  */
 object PdfBomGenerator {
+    
+    /**
+     * Generates an HTML file from markdown content
+     * 
+     * @param markdownContent The markdown content to convert
+     * @param outputFile The output HTML file
+     */
+    fun generateHtmlFromMarkdown(markdownContent: String, outputFile: File) {
+        val html = convertMarkdownToHtml(markdownContent)
+        outputFile.writeText(html)
+    }
     
     /**
      * Generates a PDF file from markdown content

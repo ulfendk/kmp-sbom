@@ -13,6 +13,18 @@ import kotlin.test.assertTrue
 
 class PdfBomGeneratorTest {
     
+    private fun assertValidPdfHeader(file: File) {
+        val headerBytes = file.readBytes()
+        assertTrue(
+            headerBytes.size >= 4 &&
+            headerBytes[0] == 0x25.toByte() &&
+            headerBytes[1] == 0x50.toByte() &&
+            headerBytes[2] == 0x44.toByte() &&
+            headerBytes[3] == 0x46.toByte(),
+            "File should have PDF header (%PDF)"
+        )
+    }
+    
     @Test
     fun `generates PDF from markdown content`() {
         val markdown = """
@@ -42,15 +54,47 @@ class PdfBomGeneratorTest {
             assertTrue(outputFile.length() > 0, "PDF file should not be empty")
             
             // Basic PDF validation - check for PDF header
-            val headerBytes = outputFile.readBytes()
-            assertTrue(
-                headerBytes.size >= 4 &&
-                headerBytes[0] == 0x25.toByte() &&
-                headerBytes[1] == 0x50.toByte() &&
-                headerBytes[2] == 0x44.toByte() &&
-                headerBytes[3] == 0x46.toByte(),
-                "File should have PDF header (%PDF)"
-            )
+            assertValidPdfHeader(outputFile)
+        } finally {
+            outputFile.delete()
+        }
+    }
+    
+    @Test
+    fun `generates HTML from markdown content`() {
+        val markdown = """
+            # Software Bill of Materials (SBOM)
+            
+            ## Metadata
+            
+            - **Serial Number**: `urn:uuid:test-123`
+            - **Version**: 1
+            
+            ## Components
+            
+            ### Library (1)
+            
+            #### com.example:test-lib @ 1.0.0
+            
+            - **PURL**: `pkg:maven/com.example/test-lib@1.0.0`
+            - **License**: Apache-2.0
+        """.trimIndent()
+        
+        val outputFile = File.createTempFile("sbom-test-", ".html")
+        try {
+            PdfBomGenerator.generateHtmlFromMarkdown(markdown, outputFile)
+            
+            // Verify file was created and has content
+            assertTrue(outputFile.exists(), "HTML file should be created")
+            assertTrue(outputFile.length() > 0, "HTML file should not be empty")
+            
+            // Verify HTML content
+            val htmlContent = outputFile.readText()
+            assertTrue(htmlContent.contains("<!DOCTYPE html>"), "Should have HTML doctype")
+            assertTrue(htmlContent.contains("<html>"), "Should have html tag")
+            assertTrue(htmlContent.contains("Software Bill of Materials"), "Should contain title")
+            assertTrue(htmlContent.contains("urn:uuid:test-123"), "Should contain serial number")
+            assertTrue(htmlContent.contains("com.example:test-lib"), "Should contain component")
         } finally {
             outputFile.delete()
         }
@@ -107,15 +151,7 @@ class PdfBomGeneratorTest {
             assertTrue(outputFile.length() > 1000, "PDF file should have substantial content")
             
             // Basic PDF validation
-            val headerBytes = outputFile.readBytes()
-            assertTrue(
-                headerBytes.size >= 4 &&
-                headerBytes[0] == 0x25.toByte() &&
-                headerBytes[1] == 0x50.toByte() &&
-                headerBytes[2] == 0x44.toByte() &&
-                headerBytes[3] == 0x46.toByte(),
-                "File should have PDF header (%PDF)"
-            )
+            assertValidPdfHeader(outputFile)
         } finally {
             outputFile.delete()
         }
